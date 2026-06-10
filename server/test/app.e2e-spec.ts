@@ -400,6 +400,11 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
       });
       expect(idle.events[0]!.event).toBe('snapshot');
       expect(idle.comments.some((c) => c.includes('ping'))).toBe(true); // 200ms cadence in e2e
+      // polling-fallback contract (#50): SSE bell payload == GET /notifications DTO
+      const polledBell = await http().get('/api/v1/notifications').set(auth()).expect(200);
+      expect(Object.keys(polledBell.body).sort()).toEqual(
+        Object.keys(idle.events[0]!.data as Record<string, unknown>).sort(),
+      );
 
       const holdA = consumeSse(server(), '/api/v1/notifications/events', cookie, { maxMs: 2500 });
       const holdB = consumeSse(server(), '/api/v1/notifications/events', cookie, { maxMs: 2500 });
