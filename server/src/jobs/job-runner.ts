@@ -1,6 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { Model } from 'mongoose';
 
+import { withSpan } from '../observability/otel';
+
 type LooseModel = Model<Record<string, unknown>>;
 
 export type JobHandler<T> = (job: T) => Promise<void>;
@@ -127,7 +129,11 @@ export class MongoJobRunner<T extends { _id: unknown }> {
 
   private async run(job: T): Promise<void> {
     try {
-      await this.handler(job);
+      await withSpan(
+        `job.${this.cfg.name}`,
+        { 'job.id': String(job._id), 'job.queue': this.cfg.name },
+        () => this.handler(job),
+      );
       // Pipelines normally set their own terminal status; this is the safety
       // net so a job can never wedge in "processing" after a clean handler.
       await this.m

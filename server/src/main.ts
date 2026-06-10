@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 import { configureApp } from './app.setup';
 import { AppConfigService } from './config';
 import { setupSwagger } from './docs/swagger.setup';
+import { initOtel } from './observability/otel';
 import { initServerSentry } from './observability/sentry';
 import { mountSpa } from './spa/spa.middleware';
 
@@ -17,6 +18,11 @@ async function bootstrap(): Promise<void> {
   app.useLogger(app.get(Logger));
 
   const config = app.get(AppConfigService);
+  await initOtel({
+    endpoint: config.observability.otlpEndpoint,
+    serviceName: config.observability.otelServiceName,
+    environment: config.core.nodeEnv,
+  });
   await initServerSentry({
     dsn: config.observability.sentryDsn,
     environment: config.core.nodeEnv,

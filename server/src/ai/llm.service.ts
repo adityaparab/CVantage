@@ -5,6 +5,7 @@ import { ZodType } from 'zod';
 
 import { AppConfigService } from '../config';
 import { AiModelUsage } from '../database/schemas/common';
+import { withSpan } from '../observability/otel';
 
 import { AiModelsService, ResolvedModel } from './ai-models.service';
 import { FakeLlmProvider } from './fake-llm.provider';
@@ -91,9 +92,21 @@ export class LlmService {
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       if (attempt > 0) await this.backoff(attempt);
       try {
-        const result = await this.withTimeout(
-          this.attemptStructured(resolved, prompt, schema, opts),
-          timeoutMs,
+        const result = await withSpan(
+          'llm.invoke',
+          { 'llm.provider': resolved.provider, 'llm.model': resolved.modelName, 'llm.usage': String(usage) },
+          async (span) => {
+            const r = await this.withTimeout(
+              this.attemptStructured(resolved, prompt, schema, opts),
+              timeoutMs,
+            );
+            // token counts only - never prompt content
+            span.setAttributes({
+              'llm.tokens.prompt': r.usage.promptTokens,
+              'llm.tokens.completion': r.usage.completionTokens,
+            });
+            return r;
+          },
         );
         if (resolved.source === 'db') {
           void this.registry.markUsed(resolved.provider, resolved.modelName).catch(() => undefined);

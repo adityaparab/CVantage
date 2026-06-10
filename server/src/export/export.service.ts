@@ -5,6 +5,7 @@ import { Model, Types } from 'mongoose';
 import { AppException } from '../common';
 import { AppConfigService } from '../config';
 import { Resume } from '../database/schemas';
+import { withSpan } from '../observability/otel';
 
 import { buildResumeDocx } from './resume-docx';
 import { buildResumePrintHtml } from './resume-print-html';
@@ -101,10 +102,14 @@ export class ExportService {
 
     const release = await this.semaphore.acquire();
     try {
-      const buffer =
-        format === 'docx'
-          ? await buildResumeDocx(doc.jsonResume, doc.name)
-          : await this.renderPdf(buildResumePrintHtml(doc.jsonResume, doc.name));
+      const buffer = await withSpan(
+        'export.render',
+        { 'export.format': format, 'resume.id': String(resumeId) },
+        async () =>
+          format === 'docx'
+            ? buildResumeDocx(doc.jsonResume, doc.name)
+            : this.renderPdf(buildResumePrintHtml(doc.jsonResume, doc.name)),
+      );
       this.cache.set(key, { buffer, expiresAt: Date.now() + CACHE_TTL_MS });
       this.gcCache();
       return { buffer, contentType: CONTENT_TYPES[format], filename };

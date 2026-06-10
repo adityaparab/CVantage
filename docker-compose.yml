@@ -30,3 +30,12 @@ services:
 
 volumes:
   mongo-data:
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.103.0
+    profiles: [obs]
+    command: ['--config=/etc/otel/config.yaml']
+    volumes:
+      - ./infra/otel-collector.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - '4318:4318'

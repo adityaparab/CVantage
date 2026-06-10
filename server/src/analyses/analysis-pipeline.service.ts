@@ -16,6 +16,7 @@ import {
 } from '../database/schemas';
 import { ProgressBusService } from '../events';
 import { JobsService, MongoJobRunner } from '../jobs';
+import { withSpan } from '../observability/otel';
 
 import { compareStepSchema, questionsStepSchema, suggestionsStepSchema } from './analysis.schemas';
 import { resolveFieldRef } from './field-ref';
@@ -111,7 +112,11 @@ export class AnalysisPipelineService implements OnApplicationBootstrap {
         await this.stepStatus(job, index, StepStatus.IN_PROGRESS);
         this.bus.publish({ type: 'analysis', ...ids, status: 'in_progress', step: key });
         try {
-          modelUsed = await this.runStep(job, key, user);
+          modelUsed = await withSpan(
+            `analysis.step.${key}`,
+            { 'analysis.id': ids.analysisId, 'analysis.step': key },
+            () => this.runStep(job, key, user),
+          );
         } catch (err) {
           await this.stepStatus(job, index, StepStatus.FAILED, errMessage(err));
           throw err;

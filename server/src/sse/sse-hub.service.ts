@@ -4,6 +4,7 @@ import type { Response } from 'express';
 import { AppException } from '../common';
 import { AppConfigService } from '../config';
 import { ShutdownService } from '../lifecycle/shutdown.service';
+import { registerSseGauge } from '../observability/otel';
 
 export interface SseConnection {
   send(event: string, data: unknown, id?: number): void;
@@ -28,6 +29,7 @@ export class SseHubService {
     shutdown: ShutdownService,
   ) {
     shutdown.registerDrainHook(() => this.drain());
+    registerSseGauge(() => this.liveConnections);
   }
 
   /** Open a stream: cap check, headers, heartbeat registration. */
