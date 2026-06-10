@@ -94,6 +94,13 @@ export class Analysis {
   @Prop({ trim: true, maxlength: 2000 }) error?: string;
   @Prop({ default: 0, min: 0, max: 5 }) retryCount!: number;
 
+  /** LLM token accounting rollup (issue #44 / 4.7). */
+  @Prop({
+    type: { promptTokens: Number, completionTokens: Number, totalTokens: Number },
+    _id: false,
+  })
+  tokensUsed?: { promptTokens: number; completionTokens: number; totalTokens: number };
+
   /* Worker bookkeeping (issue #40 / 4.3) — claim ownership + liveness. */
   @Prop({ trim: true }) claimedBy?: string;
   @Prop({ type: Date }) heartbeatAt?: Date;

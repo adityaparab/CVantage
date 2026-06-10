@@ -72,6 +72,7 @@ describe('analysis state machine (issue #43 / 4.6)', () => {
       analyses as never,
       resumes as never,
       { updateOne: jest.fn(() => chain({})) } as never,
+      { llm: { userConcurrency: 2 } } as never,
     );
   };
   const ids = { u: new Types.ObjectId(), a: new Types.ObjectId() };
@@ -116,6 +117,7 @@ describe('analysis state machine (issue #43 / 4.6)', () => {
       analyses as never,
       { findOne: jest.fn(() => chain({})), updateOne: jest.fn(() => chain({})) } as never,
       { updateOne: jest.fn(() => chain({})) } as never,
+      { llm: { userConcurrency: 2 } } as never,
     );
     const err = await svc.cancel(ids.u, ids.a).catch((e: unknown) => e);
     expect((err as AppException).getStatus()).toBe(409);
@@ -141,6 +143,7 @@ describe('analysis state machine (issue #43 / 4.6)', () => {
       } as never,
       { findOne: jest.fn(() => chain(null)), updateOne: jest.fn(() => chain({})) } as never,
       { updateOne: jest.fn(() => chain({})) } as never,
+      { llm: { userConcurrency: 2 } } as never,
     );
     let err = await svc.applySuggestion(ids.u, ids.a, sid).catch((e: unknown) => e);
     expect((err as AppException).getStatus()).toBe(410);
@@ -152,6 +155,7 @@ describe('analysis state machine (issue #43 / 4.6)', () => {
       } as never,
       { findOne: jest.fn(() => chain({})), updateOne: jest.fn(() => chain({})) } as never,
       { updateOne: jest.fn(() => chain({})) } as never,
+      { llm: { userConcurrency: 2 } } as never,
     );
     err = await svc.applySuggestion(ids.u, ids.a, sid).catch((e: unknown) => e);
     expect((err as AppException).getStatus()).toBe(422);
@@ -163,6 +167,7 @@ describe('analysis state machine (issue #43 / 4.6)', () => {
       } as never,
       { findOne: jest.fn(() => chain({})), updateOne: jest.fn(() => chain({})) } as never,
       { updateOne: jest.fn(() => chain({})) } as never,
+      { llm: { userConcurrency: 2 } } as never,
     );
     const ok = await svc.applySuggestion(ids.u, ids.a, sid);
     expect(ok.outcome).toBe('already_applied');

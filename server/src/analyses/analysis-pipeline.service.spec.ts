@@ -11,7 +11,10 @@ import { resolveFieldRef } from './field-ref';
 const fakeLlm = () =>
   new LlmService(
     { resolve: jest.fn(), markUsed: jest.fn() } as never,
-    { llm: { provider: 'fake', timeoutMs: 5000, maxRetries: 0 } } as never,
+    {
+      llm: { provider: 'fake', timeoutMs: 5000, maxRetries: 0 },
+      observability: { langfuse: {} },
+    } as never,
     new FakeLlmProvider(),
   );
 
@@ -54,6 +57,7 @@ const make = (jd?: string) => {
     fakeLlm(),
     { createRunner: jest.fn() } as never,
     bus,
+    { llm: { maxTokensAnalysis: 4096 } } as never,
   );
   return { svc, analyses, resumes, events, theJob: job(jd) };
 };

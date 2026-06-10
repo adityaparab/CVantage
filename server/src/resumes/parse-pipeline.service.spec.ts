@@ -10,7 +10,10 @@ import { PARSE_SYSTEM_PROMPT, ParsePipelineService } from './parse-pipeline.serv
 const fakeLlmService = () =>
   new LlmService(
     { resolve: jest.fn(), markUsed: jest.fn() } as never,
-    { llm: { provider: 'fake', timeoutMs: 5000, maxRetries: 0 } } as never,
+    {
+      llm: { provider: 'fake', timeoutMs: 5000, maxRetries: 0 },
+      observability: { langfuse: {} },
+    } as never,
     new FakeLlmProvider(),
   );
 
@@ -38,6 +41,7 @@ const make = (model = modelMock(), llm = fakeLlmService()) => {
     llm,
     { createRunner: jest.fn() } as never,
     bus,
+    { llm: { maxTokensParsing: 8192 } } as never,
   );
   return { svc, model, events };
 };
@@ -101,10 +105,7 @@ describe('ParsePipelineService (issue #41 / 4.4)', () => {
     const err = await svc.parse(job({ originalText: undefined })).catch((e: unknown) => e);
     expect((err as { retryable?: boolean }).retryable).toBe(false);
     expect((err as Error).message).toMatch(/No extracted text/);
-    expect(events.map((e) => (e as { status: string }).status)).toEqual([
-      'processing',
-      'failed',
-    ]);
+    expect(events.map((e) => (e as { status: string }).status)).toEqual(['processing', 'failed']);
   });
 
   it('llm failure publishes failed and rethrows for runner bookkeeping', async () => {

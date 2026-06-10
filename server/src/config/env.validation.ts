@@ -97,6 +97,8 @@ const envObjectSchema = z.object({
   LLM_ANALYSIS_MODEL: z.string().min(1).default('gpt-4o'),
   LLM_TIMEOUT_MS: intString(60_000, 1_000),
   LLM_MAX_RETRIES: intString(2, 0),
+  LLM_MAX_TOKENS_PARSING: z.coerce.number().int().min(256).max(32_000).default(8192),
+  LLM_MAX_TOKENS_ANALYSIS: z.coerce.number().int().min(256).max(32_000).default(4096),
   LLM_USER_CONCURRENCY: intString(2, 1),
 
   /* ----------------------------- mail ----------------------------- */

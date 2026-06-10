@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { LlmService } from '../ai/llm.service';
+import { AppConfigService } from '../config';
 import { AiModelUsage, UploadParseStatus } from '../database/schemas/common';
 import { Resume, ResumeDocument } from '../database/schemas/resume.schema';
 import { ProgressBusService } from '../events';
@@ -22,8 +23,7 @@ export const PARSE_SYSTEM_PROMPT = [
   'Dates must be YYYY, YYYY-MM or YYYY-MM-DD. Omit unknown fields entirely.',
 ].join(' ');
 
-const userPrompt = (text: string) =>
-  `<<RESUME_TEXT>>\n${text}\n<<END_RESUME_TEXT>>`;
+const userPrompt = (text: string) => `<<RESUME_TEXT>>\n${text}\n<<END_RESUME_TEXT>>`;
 
 /**
  * Upload-parse pipeline (issue #41 / 4.4): originalText -> jsonResume.
@@ -42,6 +42,7 @@ export class ParsePipelineService implements OnApplicationBootstrap {
     private readonly llm: LlmService,
     private readonly jobs: JobsService,
     private readonly bus: ProgressBusService,
+    private readonly config: AppConfigService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -87,6 +88,10 @@ export class ParsePipelineService implements OnApplicationBootstrap {
         AiModelUsage.RESUME_PARSING,
         { system: PARSE_SYSTEM_PROMPT, user: userPrompt(text) },
         jsonResumeSchema,
+        {
+          maxTokens: this.config.llm.maxTokensParsing,
+          metadata: { usage: 'resume_parsing', resumeId: ids.resumeId },
+        },
       );
       const pruned = pruneEmpty(result.output) ?? {};
       await this.resumes
@@ -98,6 +103,7 @@ export class ParsePipelineService implements OnApplicationBootstrap {
               'uploadParse.status': UploadParseStatus.COMPLETED,
               'uploadParse.completedAt': new Date(),
               'uploadParse.modelUsed': `${result.provider}/${result.modelName}`,
+              'uploadParse.tokensUsed': result.usage,
             },
             $unset: { 'uploadParse.error': 1 },
           },

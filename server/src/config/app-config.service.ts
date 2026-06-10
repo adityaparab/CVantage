@@ -104,6 +104,8 @@ export class AppConfigService {
       timeoutMs: this.get('LLM_TIMEOUT_MS'),
       maxRetries: this.get('LLM_MAX_RETRIES'),
       userConcurrency: this.get('LLM_USER_CONCURRENCY'),
+      maxTokensParsing: this.get('LLM_MAX_TOKENS_PARSING'),
+      maxTokensAnalysis: this.get('LLM_MAX_TOKENS_ANALYSIS'),
     };
   }
 

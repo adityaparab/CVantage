@@ -17,6 +17,7 @@ const registryWith = (resolved: Record<string, unknown>) => ({
 const config = (over: Record<string, unknown> = {}) =>
   ({
     llm: { provider: 'openai', timeoutMs: 5_000, maxRetries: 2, ...over },
+    observability: { langfuse: {} },
   }) as never;
 
 const RESOLVED = {

@@ -10,6 +10,7 @@ const make = (resumeDoc: unknown) => {
   const analyses = {
     create: jest.fn(async (d: Record<string, unknown>) => ({ ...d, _id: new Types.ObjectId() })),
     findOne: jest.fn((_f: Record<string, unknown>) => chain(null)),
+    countDocuments: jest.fn(() => chain(0)),
   };
   const resumes = {
     findOne: jest.fn((_f: Record<string, unknown>) => chain(resumeDoc)),
@@ -22,7 +23,12 @@ const make = (resumeDoc: unknown) => {
     analyses,
     resumes,
     users,
-    svc: new AnalysesService(analyses as never, resumes as never, users as never),
+    svc: new AnalysesService(
+      analyses as never,
+      resumes as never,
+      users as never,
+      { llm: { userConcurrency: 2 } } as never,
+    ),
   };
 };
 

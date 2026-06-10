@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
 import { AppException } from '../common';
+import { AppConfigService } from '../config';
 import {
   Analysis,
   AnalysisDocument,
@@ -32,9 +33,24 @@ export class AnalysesService {
     @InjectModel(Analysis.name) private readonly analyses: Model<Analysis>,
     @InjectModel(Resume.name) private readonly resumes: Model<Resume>,
     @InjectModel(User.name) private readonly users: Model<User>,
+    private readonly config: AppConfigService,
   ) {}
 
   async create(userId: Types.ObjectId, input: CreateAnalysisInput): Promise<AnalysisDocument> {
+    const running = await this.analyses
+      .countDocuments({
+        userId,
+        status: { $in: [AnalysisStatus.PENDING, AnalysisStatus.IN_PROGRESS] },
+      })
+      .exec();
+    if (running >= this.config.llm.userConcurrency) {
+      throw new AppException(
+        429,
+        'Too Many Requests',
+        `You already have ${running} analyses running - wait for one to finish before starting another`,
+        { limit: this.config.llm.userConcurrency, running },
+      );
+    }
     const resume = await this.resumes
       .findOne({ _id: input.resumeId, userId, deletedAt: null })
       .exec();

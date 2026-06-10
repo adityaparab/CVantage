@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { LlmService } from '../ai/llm.service';
+import { AppConfigService } from '../config';
 import {
   AiModelUsage,
   Analysis,
@@ -64,6 +65,7 @@ export class AnalysisPipelineService implements OnApplicationBootstrap {
     private readonly llm: LlmService,
     private readonly jobs: JobsService,
     private readonly bus: ProgressBusService,
+    private readonly config: AppConfigService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -150,6 +152,24 @@ export class AnalysisPipelineService implements OnApplicationBootstrap {
     }
   }
 
+  private async addTokens(
+    jobId: unknown,
+    usage: { promptTokens: number; completionTokens: number; totalTokens: number },
+  ): Promise<void> {
+    await this.analyses
+      .updateOne(
+        { _id: jobId },
+        {
+          $inc: {
+            'tokensUsed.promptTokens': usage.promptTokens,
+            'tokensUsed.completionTokens': usage.completionTokens,
+            'tokensUsed.totalTokens': usage.totalTokens,
+          },
+        },
+      )
+      .exec();
+  }
+
   private async runStep(
     job: AnalysisDocument,
     key: AnalysisStepKey,
@@ -159,8 +179,17 @@ export class AnalysisPipelineService implements OnApplicationBootstrap {
       system: STEP_PROMPTS[key].system,
       user: `${STEP_PROMPTS[key].ask}\n${user}`,
     };
+    const llmOpts = {
+      maxTokens: this.config.llm.maxTokensAnalysis,
+      metadata: { usage: 'analysis', step: key, analysisId: String(job._id) },
+    };
     if (key === AnalysisStepKey.COMPARE) {
-      const r = await this.llm.invokeStructured(AiModelUsage.ANALYSIS, prompt, compareStepSchema);
+      const r = await this.llm.invokeStructured(
+        AiModelUsage.ANALYSIS,
+        prompt,
+        compareStepSchema,
+        llmOpts,
+      );
       await this.analyses
         .updateOne(
           { _id: job._id },
@@ -176,6 +205,7 @@ export class AnalysisPipelineService implements OnApplicationBootstrap {
           },
         )
         .exec();
+      await this.addTokens(job._id, r.usage);
       return `${r.provider}/${r.modelName}`;
     }
     if (key === AnalysisStepKey.SUGGESTIONS) {
@@ -183,6 +213,7 @@ export class AnalysisPipelineService implements OnApplicationBootstrap {
         AiModelUsage.ANALYSIS,
         prompt,
         suggestionsStepSchema,
+        llmOpts,
       );
       const valid = r.output.suggestions.filter((s) => {
         const ok = resolveFieldRef(job.resumeSnapshot, s.fieldRef);
@@ -204,12 +235,19 @@ export class AnalysisPipelineService implements OnApplicationBootstrap {
           },
         )
         .exec();
+      await this.addTokens(job._id, r.usage);
       return `${r.provider}/${r.modelName}`;
     }
-    const r = await this.llm.invokeStructured(AiModelUsage.ANALYSIS, prompt, questionsStepSchema);
+    const r = await this.llm.invokeStructured(
+      AiModelUsage.ANALYSIS,
+      prompt,
+      questionsStepSchema,
+      llmOpts,
+    );
     await this.analyses
       .updateOne({ _id: job._id }, { $set: { 'result.interviewQuestions': r.output.questions } })
       .exec();
+    await this.addTokens(job._id, r.usage);
     return `${r.provider}/${r.modelName}`;
   }
 

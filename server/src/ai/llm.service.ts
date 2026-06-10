@@ -1,5 +1,6 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { Injectable, Logger } from '@nestjs/common';
+import { CallbackHandler } from 'langfuse-langchain';
 import { ZodType } from 'zod';
 
 import { AppConfigService } from '../config';
@@ -20,6 +21,11 @@ import {
   llmTimeout,
 } from './llm.types';
 
+/** Bump when prompts change materially - lands in trace metadata. */
+export const PROMPT_VERSION = 'v1';
+
+const MAX_USER_PROMPT_CHARS = 260_000; // JD 50k + resume 200k + fencing slack
+
 const REPAIR_INSTRUCTION =
   '\n\nIMPORTANT: your previous reply was not valid for the required schema. ' +
   'Respond ONLY with JSON that exactly matches the schema. No prose, no markdown fences.';
@@ -34,12 +40,26 @@ const REPAIR_INSTRUCTION =
 @Injectable()
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
+  /** Langfuse handler only when configured - otherwise empty (zero overhead). */
+  private readonly callbacks: CallbackHandler[];
 
   constructor(
     private readonly registry: AiModelsService,
     private readonly config: AppConfigService,
     private readonly fake: FakeLlmProvider,
-  ) {}
+  ) {
+    const lf = this.config.observability.langfuse;
+    this.callbacks =
+      lf.publicKey && lf.secretKey
+        ? [
+            new CallbackHandler({
+              publicKey: lf.publicKey,
+              secretKey: lf.secretKey,
+              baseUrl: lf.host,
+            }),
+          ]
+        : [];
+  }
 
   async invokeStructured<T>(
     usage: AiModelUsage,
@@ -47,6 +67,9 @@ export class LlmService {
     schema: ZodType<T>,
     opts: InvokeOptions = {},
   ): Promise<StructuredResult<T>> {
+    if (prompt.user.length > MAX_USER_PROMPT_CHARS) {
+      throw llmProvider('input exceeds the configured size limits');
+    }
     if (this.config.llm.provider === 'fake') {
       const fake = this.fake.invoke(usage, prompt);
       const parsed = schema.safeParse(fake.output);
@@ -69,7 +92,7 @@ export class LlmService {
       if (attempt > 0) await this.backoff(attempt);
       try {
         const result = await this.withTimeout(
-          this.attemptStructured(resolved, prompt, schema),
+          this.attemptStructured(resolved, prompt, schema, opts),
           timeoutMs,
         );
         if (resolved.source === 'db') {
@@ -97,23 +120,34 @@ export class LlmService {
     resolved: ResolvedModel,
     prompt: LlmPrompt,
     schema: ZodType<T>,
+    opts: InvokeOptions = {},
   ): Promise<{ output: T; usage: LlmUsageStats }> {
-    const chat = this.buildChat(resolved);
+    const chat = this.buildChat(resolved, opts.maxTokens);
+    const callOptions = {
+      metadata: { promptVersion: PROMPT_VERSION, source: resolved.source, ...opts.metadata },
+      callbacks: this.callbacks,
+    };
     const structured = chat.withStructuredOutput<Record<string, unknown>>(schema as never, {
       includeRaw: true,
     });
-    const first = await structured.invoke([
-      ['system', prompt.system],
-      ['human', prompt.user],
-    ]);
+    const first = await structured.invoke(
+      [
+        ['system', prompt.system],
+        ['human', prompt.user],
+      ],
+      callOptions,
+    );
     const validated = schema.safeParse(first.parsed);
     if (validated.success) {
       return { output: validated.data, usage: this.extractUsage(first.raw) };
     }
-    const second = await structured.invoke([
-      ['system', prompt.system + REPAIR_INSTRUCTION],
-      ['human', prompt.user],
-    ]);
+    const second = await structured.invoke(
+      [
+        ['system', prompt.system + REPAIR_INSTRUCTION],
+        ['human', prompt.user],
+      ],
+      callOptions,
+    );
     const repaired = schema.safeParse(second.parsed);
     if (repaired.success) {
       return { output: repaired.data, usage: this.extractUsage(second.raw) };
@@ -121,10 +155,11 @@ export class LlmService {
     throw llmInvalidOutput(repaired.error.message.slice(0, 300));
   }
 
-  protected buildChat(resolved: ResolvedModel): ChatOpenAI {
+  protected buildChat(resolved: ResolvedModel, maxTokens?: number): ChatOpenAI {
     return new ChatOpenAI({
       model: resolved.modelName,
       apiKey: resolved.apiKey,
+      maxTokens,
       maxRetries: 0, // retries are ours: typed + bounded + observable
       configuration: resolved.baseURL ? { baseURL: resolved.baseURL } : undefined,
     });

@@ -121,6 +121,8 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
       expect(body.result.suggestions.map((s) => s.fieldRef)).not.toContain('totally.fake[9].path');
       expect(body.durationMs).toBeGreaterThanOrEqual(0);
       expect(body.modelUsed).toBe('fake/fake-fixture');
+      const tokens = (done as unknown as { tokensUsed: { totalTokens: number } }).tokensUsed;
+      expect(tokens.totalTokens).toBeGreaterThan(0); // rollup across 3 steps (#44)
 
       const resume = await http().get(`/api/v1/resumes/${resumeId}`).set(auth()).expect(200);
       expect(resume.body.analysisStatus).toBe('completed');

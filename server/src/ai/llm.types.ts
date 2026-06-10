@@ -22,6 +22,10 @@ export interface StructuredResult<T> {
 export interface InvokeOptions {
   timeoutMs?: number;
   maxRetries?: number;
+  /** Per-call max_tokens cap (cost guard, #44). */
+  maxTokens?: number;
+  /** Trace metadata: usage tag, analysis id, prompt version (#44). */
+  metadata?: Record<string, string>;
 }
 
 export type LlmErrorCode = 'TIMEOUT' | 'QUOTA' | 'AUTH' | 'INVALID_OUTPUT' | 'PROVIDER';
