@@ -13,11 +13,6 @@ function Placeholder({ title, note, icon }: { title: string; note: string; icon?
   );
 }
 
-export function NewAnalysisPage() {
-  return (
-    <Placeholder title="New analysis" note="Analysis creation lands with #72 (8.8)." icon="🧪" />
-  );
-}
 export function AnalysesPage() {
   return (
     <Placeholder

@@ -12,7 +12,6 @@ import {
   AdminModelsPage,
   AdminUsersPage,
   AnalysesPage,
-  NewAnalysisPage,
 } from './pages/placeholders';
 import { QueryProvider } from './query';
 
@@ -22,6 +21,7 @@ import { env } from '@/lib/env';
 
 const Showcase = lazy(() => import('@/features/showcase/Showcase'));
 const LandingPage = lazy(() => import('@/features/marketing/LandingPage'));
+const AnalysisScreen = lazy(() => import('@/features/analyses/AnalysisScreen'));
 const AnalyzeScreen = lazy(() => import('@/features/analyses/AnalyzeScreen'));
 const ReviewScreen = lazy(() => import('@/features/upload-review/ReviewScreen'));
 const ResumeViewScreen = lazy(() => import('@/features/resume-view/ResumeViewScreen'));
@@ -100,7 +100,8 @@ export const router = createBrowserRouter([
         children: [
           { path: '/dashboard', element: lazyPage(<DashboardScreen />) },
           { path: '/analyses', element: <AnalysesPage /> },
-          { path: '/analyses/new', element: <NewAnalysisPage /> },
+          { path: '/analyses/:id', element: lazyPage(<AnalysisScreen />) },
+          { path: '/analyses/:id/apply', element: <AnalysesPage /> },
           { path: '/resumes/new', element: lazyPage(<CreateResumeScreen />) },
           { path: '/resumes/upload', element: lazyPage(<UploadScreen />) },
           { path: '/resumes/:id/edit', element: lazyPage(<ResumeViewScreen />) },

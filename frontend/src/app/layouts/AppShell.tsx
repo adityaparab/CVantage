@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router';
 
 import { Button } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
+import { NotificationsBell } from '@/features/notifications/NotificationsBell';
 import { cn } from '@/lib/cn';
 import { toggleTheme } from '@/lib/theme';
 
@@ -46,13 +47,7 @@ export default function AppShell() {
             >
               ◐
             </Button>
-            {/* bell with live count lands in #67 (8.x) */}
-            <span
-              aria-label="Notifications"
-              className="grid size-9 place-items-center rounded-[10px] border border-line bg-card text-muted"
-            >
-              🔔
-            </span>
+            <NotificationsBell />
             <div
               className="bg-gradient-brand grid size-9 place-items-center rounded-full text-[0.78rem] font-bold text-white"
               title={user?.fullName}
