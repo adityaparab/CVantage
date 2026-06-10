@@ -36,10 +36,12 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
     "@vitest/coverage-v8": "^4.1.8",
+    "axe-core": "^4.12.1",
     "jsdom": "^29.1.1",
     "msw": "^2.14.6",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "vitest-axe": "^0.1.0"
   }
 }

@@ -95,13 +95,6 @@ export default function UploadScreen() {
       {phase.kind === 'idle' ? (
         <>
           <div
-            role="button"
-            tabIndex={0}
-            aria-label="Upload a resume file"
-            onClick={() => inputRef.current?.click()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click();
-            }}
             onDragOver={(e) => {
               e.preventDefault();
               setDragOver(true);
@@ -113,27 +106,13 @@ export default function UploadScreen() {
               const file = e.dataTransfer.files[0];
               if (file) start(file);
             }}
-            className={cn(
-              'mt-6 grid cursor-pointer place-items-center rounded-card border-2 border-dashed px-6 py-16 text-center transition-colors',
-              dragOver
-                ? 'border-accent bg-accent-soft'
-                : 'border-line-2 bg-canvas-2 hover:border-accent',
-            )}
           >
-            <div>
-              <p aria-hidden="true" className="text-3xl">
-                📤
-              </p>
-              <p className="mt-2 font-semibold text-ink">Drag & drop your resume here</p>
-              <p className="mt-1 text-sm text-muted">
-                or click to choose a file (.pdf, .doc, .docx)
-              </p>
-            </div>
             <input
               ref={inputRef}
+              id="resume-file"
               type="file"
               accept={ACCEPTED.join(',')}
-              className="sr-only"
+              className="peer sr-only"
               aria-label="Choose resume file"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -141,7 +120,23 @@ export default function UploadScreen() {
                 e.target.value = '';
               }}
             />
-          </div>
+            <label
+              htmlFor="resume-file"
+              className={cn(
+                'mt-6 grid cursor-pointer place-items-center rounded-card border-2 border-dashed px-6 py-16 text-center transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-accent',
+                dragOver ? 'border-accent bg-accent-soft' : 'border-line-2 bg-canvas-2 hover:border-accent',
+              )}
+            >
+              <span>
+                <span aria-hidden="true" className="block text-3xl">
+                  📤
+                </span>
+                <span className="mt-2 block font-semibold text-ink">Drag & drop your resume here</span>
+                <span className="mt-1 block text-sm text-muted">
+                  or click to choose a file (.pdf, .doc, .docx)
+                </span>
+              </span>
+            </label>          </div>
           {phase.error ? (
             <p role="alert" className="mt-3 rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
               {phase.error}
