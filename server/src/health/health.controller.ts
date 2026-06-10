@@ -7,6 +7,7 @@ import {
   MemoryHealthIndicator,
   MongooseHealthIndicator,
 } from '@nestjs/terminus';
+import { SkipThrottle } from '@nestjs/throttler';
 
 import { AppConfigService } from '../config';
 
@@ -18,6 +19,7 @@ import { AppConfigService } from '../config';
  * Public by design; excluded from throttling in #16 and from auth in #22.
  * Terminus responses contain component status only — no URIs or internals.
  */
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(

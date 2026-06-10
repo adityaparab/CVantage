@@ -1,17 +1,19 @@
-import { VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module';
+import { configureApp } from './app.setup';
 import { AppConfigService } from './config';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+    bodyParser: false, // applied with explicit limits in configureApp
+  });
   app.useLogger(app.get(Logger));
 
-  // CLAUDE.md contract: every route lives under /api/v1 (prefix + URI versioning).
-  app.setGlobalPrefix('api');
-  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+  configureApp(app);
 
   const { port } = app.get(AppConfigService).core;
   await app.listen(port, '0.0.0.0');

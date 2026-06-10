@@ -94,7 +94,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
-    const err = exception as MongoServerLikeError;
+    const err = exception as MongoServerLikeError & { status?: number; statusCode?: number };
+
+    // Express/http-errors middleware failures (body-parser 413, malformed JSON 400, …)
+    const middlewareStatus = err?.status ?? err?.statusCode;
+    if (typeof middlewareStatus === 'number' && middlewareStatus >= 400 && middlewareStatus < 500) {
+      return {
+        status: middlewareStatus,
+        error: STATUS_NAMES[middlewareStatus] ?? 'Request Error',
+        message: err.message ?? 'Request could not be processed',
+      };
+    }
 
     // Mongo duplicate key → 409
     if (err?.code === 11000) {

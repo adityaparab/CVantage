@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AllExceptionsFilter, ZodValidationPipe } from './common';
-import { AppConfigModule } from './config';
+import { AppConfigModule, AppConfigService } from './config';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { LoggingModule } from './observability/logging.module';
@@ -13,8 +14,26 @@ import { LoggingModule } from './observability/logging.module';
  * from Phase 2 onward (PLAN.md §7.1).
  */
 @Module({
-  imports: [AppConfigModule, LoggingModule, DatabaseModule, HealthModule],
+  imports: [
+    AppConfigModule,
+    LoggingModule,
+    DatabaseModule,
+    HealthModule,
+    ThrottlerModule.forRootAsync({
+      inject: [AppConfigService],
+      useFactory: (config: AppConfigService) => ({
+        throttlers: [
+          {
+            name: 'default',
+            ttl: config.throttle.ttlSeconds * 1000,
+            limit: config.throttle.limit,
+          },
+        ],
+      }),
+    }),
+  ],
   providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_PIPE, useClass: ZodValidationPipe },
   ],
