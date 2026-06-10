@@ -1,0 +1,8 @@
+{
+  "*.{ts,tsx,js,jsx,mjs,cjs}": [
+    "eslint --fix --max-warnings 0 --no-warn-ignored --no-error-on-unmatched-pattern",
+    "prettier --write"
+  ],
+  "*.{json,md,yml,yaml}": "prettier --write",
+  "*.{ts,tsx}": "node scripts/git-hooks/run-related-tests.mjs"
+}
