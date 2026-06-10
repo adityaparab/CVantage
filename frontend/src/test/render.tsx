@@ -15,7 +15,11 @@ export type AuthScenario = 'anonymous' | 'candidate' | 'admin';
 /** Boot any UI in one line with providers + chosen auth state (#63). */
 export function renderWith(
   ui: ReactNode,
-  { auth = 'candidate', route = '/' }: { auth?: AuthScenario; route?: string } = {},
+  {
+    auth = 'candidate',
+    route = '/',
+    path = '*',
+  }: { auth?: AuthScenario; route?: string; path?: string } = {},
 ): RenderResult & { client: QueryClient } {
   server.use(authHandlers[auth]);
   const client = new QueryClient({
@@ -24,7 +28,7 @@ export function renderWith(
   const router = createMemoryRouter(
     [
       {
-        path: '*',
+        path,
         element: (
           <AuthProvider>
             <ToastProvider>
