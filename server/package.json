@@ -2,12 +2,27 @@
   "name": "@cvantage/server",
   "version": "0.1.0",
   "private": true,
-  "description": "CVantage API server (NestJS + MongoDB) — scaffold lands in issue #10",
+  "description": "CVantage API server (NestJS + MongoDB)",
   "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start:prod": "node dist/main.js",
     "lint": "eslint . --max-warnings 0 --no-error-on-unmatched-pattern",
     "lint:fix": "eslint . --fix",
-    "test": "echo \"@cvantage/server: test placeholder — harness in issue #19 (1.10)\"",
-    "build": "echo \"@cvantage/server: build placeholder — scaffold in issue #10 (1.1)\"",
-    "typecheck": "echo \"@cvantage/server: typecheck placeholder — tsconfig lands in #10 (1.1)\""
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "echo \"@cvantage/server: test placeholder — harness in issue #19 (1.10)\""
+  },
+  "dependencies": {
+    "@nestjs/common": "^11",
+    "@nestjs/core": "^11",
+    "@nestjs/platform-express": "^11",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11",
+    "@nestjs/schematics": "^11",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.9.2"
   }
 }
