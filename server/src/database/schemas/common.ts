@@ -109,6 +109,7 @@ export enum AuditAction {
   ADMIN_MODEL_REMOVE = 'admin.model.remove',
   ADMIN_MODEL_KEY_ROTATE = 'admin.model.key_rotate',
   RESUME_DELETE = 'resume.delete',
+  AUTH_REFRESH_REUSE = 'auth.refresh_reuse',
 }
 
 /** json-resume partial date: "YYYY" | "YYYY-MM" | "YYYY-MM-DD" */

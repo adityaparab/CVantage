@@ -122,6 +122,67 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     });
   });
 
+  describe('auth: session tokens (issue #23 / 2.2)', () => {
+    const creds = { email: 'rot@e2e.test', fullName: 'Rotator', password: 'Engine-4242X' };
+    const getCookies = (res: { headers: Record<string, unknown> }): string[] =>
+      ([] as string[]).concat((res.headers['set-cookie'] as string[]) ?? []);
+    const cookieHeader = (cookies: string[]): string =>
+      cookies.map((c) => c.split(';')[0]).join('; ');
+
+    it('login sets httpOnly access+refresh cookies and returns a bearer token', async () => {
+      await http().post('/api/v1/auth/register').send(creds).expect(201);
+      const res = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      const cookies = getCookies(res);
+      expect(cookies.some((c) => c.startsWith('cvantage.access=') && /HttpOnly/i.test(c))).toBe(
+        true,
+      );
+      expect(
+        cookies.some(
+          (c) =>
+            c.startsWith('cvantage.refresh=') && /HttpOnly/i.test(c) && c.includes('/api/v1/auth'),
+        ),
+      ).toBe(true);
+      expect(res.body.accessToken.split('.')).toHaveLength(3);
+    });
+
+    it('refresh rotates; the old token is dead; replay revokes the family', async () => {
+      const login = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      const c1 = cookieHeader(getCookies(login));
+
+      const r1 = await http().post('/api/v1/auth/refresh').set('Cookie', c1).send({}).expect(200);
+      const c2 = cookieHeader(getCookies(r1));
+      expect(c2).not.toBe(c1);
+
+      // replaying the consumed token → 401 + family revocation
+      await http().post('/api/v1/auth/refresh').set('Cookie', c1).send({}).expect(401);
+      // even the newer token is now revoked (family containment)
+      await http().post('/api/v1/auth/refresh').set('Cookie', c2).send({}).expect(401);
+      const audits = await mongoose.connection
+        .db!.collection('auditlogs')
+        .countDocuments({ action: 'auth.refresh_reuse' });
+      expect(audits).toBeGreaterThanOrEqual(1);
+    });
+
+    it('logout clears cookies and kills the refresh token', async () => {
+      const login = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      const c = cookieHeader(getCookies(login));
+      const out = await http().post('/api/v1/auth/logout').set('Cookie', c).send({}).expect(204);
+      expect(getCookies(out).every((x) => /Expires=Thu, 01 Jan 1970|Max-Age=0/i.test(x))).toBe(
+        true,
+      );
+      await http().post('/api/v1/auth/refresh').set('Cookie', c).send({}).expect(401);
+    });
+  });
+
   it('GET /api/v1/health/ready → 503 once mongo stops (readiness flip)', async () => {
     await mongoose.connection.close(); // sever the app's connection
     await mongo.stop();

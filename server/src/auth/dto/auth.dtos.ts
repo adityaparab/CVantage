@@ -41,10 +41,29 @@ export class LoginDto extends zodDto(loginSchema) {
   @ApiProperty({ example: 'Difference-Engine-42' }) password!: string;
 }
 
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(20).optional(),
+});
+
+export class RefreshDto extends zodDto(refreshSchema) {
+  @ApiProperty({
+    required: false,
+    description: 'Only for non-browser clients — browsers use the httpOnly cookie',
+    example: 'pXg1u9…base64url…',
+  })
+  refreshToken?: string;
+}
+
 export class AuthUserDto {
   @ApiProperty({ example: '665f1c2d3e4f5a6b7c8d9e0f' }) id!: string;
   @ApiProperty({ example: 'ada@example.com' }) email!: string;
   @ApiProperty({ example: 'Ada Lovelace' }) fullName!: string;
   @ApiProperty({ example: 'candidate', enum: ['candidate', 'admin'] }) role!: string;
   @ApiProperty({ example: false }) emailVerified!: boolean;
+}
+
+export class SessionDto {
+  @ApiProperty({ type: AuthUserDto }) user!: AuthUserDto;
+  @ApiProperty({ description: 'JWT for Authorization: Bearer — also set as httpOnly cookie' })
+  accessToken!: string;
 }
