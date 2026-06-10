@@ -98,7 +98,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
-    const err = exception as MongoServerLikeError & { status?: number; statusCode?: number };
+    const err = exception as MongoServerLikeError & {
+      status?: number;
+      statusCode?: number;
+      code?: number | string;
+    };
+
+    // Multer upload failures (size cap, unexpected fields)
+    if (err?.name === 'MulterError') {
+      const tooLarge = String(err.code) === 'LIMIT_FILE_SIZE';
+      return {
+        status: tooLarge ? HttpStatus.PAYLOAD_TOO_LARGE : HttpStatus.BAD_REQUEST,
+        error: tooLarge ? 'Payload Too Large' : 'Bad Request',
+        message: tooLarge ? 'File exceeds the 10MB limit' : (err.message ?? 'Upload failed'),
+      };
+    }
 
     // Express/http-errors middleware failures (body-parser 413, malformed JSON 400, …)
     const middlewareStatus = err?.status ?? err?.statusCode;

@@ -104,13 +104,13 @@ export class LockoutService {
   }
 
   /** Plain request-count limiting for forgot/reset/register (per email+ip pair). */
-  hit(scope: string, email: string, ip: string): LockoutCheck {
+  hit(scope: string, email: string, ip: string, limit?: number): LockoutCheck {
     const now = Date.now();
     const windowMs = this.config.throttle.ttlSeconds * 1000;
-    const limit = this.config.throttle.authLimit;
+    const effectiveLimit = limit ?? this.config.throttle.authLimit;
     const b = this.bucket(`h:${scope}:${email.toLowerCase()}:${ip}`);
     b.failures = b.failures.filter((t) => now - t < windowMs);
-    if (b.failures.length >= limit) {
+    if (b.failures.length >= effectiveLimit) {
       const retryAfterS = Math.ceil((b.failures[0]! + windowMs - now) / 1000);
       return { blocked: true, retryAfterS: Math.max(retryAfterS, 1) };
     }

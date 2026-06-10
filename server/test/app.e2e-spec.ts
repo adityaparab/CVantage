@@ -433,6 +433,81 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     });
   });
 
+  describe('resume upload (issue #35 / 3.5)', () => {
+    const creds = { email: 'upload@e2e.test', fullName: 'Upper', password: 'Engine-4242X' };
+    let bearer = '';
+    const auth = () => ({ Authorization: `Bearer ${bearer}` });
+    const PDF = Buffer.from('%PDF-1.4 minimal cvantage fixture');
+    const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+    beforeAll(async () => {
+      await http().post('/api/v1/auth/register').send(creds).expect(201);
+      const login = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      bearer = login.body.accessToken as string;
+    });
+
+    it('happy path: pdf upload creates an uploaded resume with pending parse', async () => {
+      const res = await http()
+        .post('/api/v1/resumes/upload')
+        .set(auth())
+        .attach('file', PDF, { filename: 'Ada Lovelace CV.pdf', contentType: 'application/pdf' })
+        .expect(201);
+      expect(res.body).toMatchObject({
+        source: 'uploaded',
+        name: 'Ada Lovelace CV',
+        uploadParse: { status: 'pending' },
+      });
+      const row = await mongoose.connection
+        .db!.collection('resumes')
+        .findOne({ _id: new mongoose.Types.ObjectId(res.body.id as string) });
+      expect(row!.originalFile.sizeBytes).toBe(PDF.length);
+      expect(row!.originalFile.storageKey).toMatch(/.pdf$/);
+      expect(row!.originalFile.sha256).toHaveLength(64);
+    });
+
+    it('same filename dedupes to "… (2)"', async () => {
+      const res = await http()
+        .post('/api/v1/resumes/upload')
+        .set(auth())
+        .attach('file', PDF, { filename: 'Ada Lovelace CV.pdf', contentType: 'application/pdf' })
+        .expect(201);
+      expect(res.body.name).toBe('Ada Lovelace CV (2)');
+    });
+
+    it('spoofed exe renamed to .pdf → 422 naming the magic-byte mismatch', async () => {
+      const res = await http()
+        .post('/api/v1/resumes/upload')
+        .set(auth())
+        .attach('file', Buffer.from('MZbinary'), {
+          filename: 'evil.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(422);
+      expect(JSON.stringify(res.body.details)).toContain('sniffed');
+    });
+
+    it('declared-mime mismatch and oversize are rejected (422 / 413)', async () => {
+      await http()
+        .post('/api/v1/resumes/upload')
+        .set(auth())
+        .attach('file', PDF, { filename: 'cv.pdf', contentType: DOCX_MIME })
+        .expect(422);
+      const big = Buffer.concat([
+        Buffer.from('%PDF-1.4'),
+        Buffer.alloc(10 * 1024 * 1024 + 10, 0x20),
+      ]);
+      const res = await http()
+        .post('/api/v1/resumes/upload')
+        .set(auth())
+        .attach('file', big, { filename: 'big.pdf', contentType: 'application/pdf' })
+        .expect(413);
+      expect(res.body.message).toMatch(/10MB/);
+    });
+  });
+
   it('GET /api/v1/health/ready → 503 once mongo stops (readiness flip)', async () => {
     await mongoose.connection.close(); // sever the app's connection
     await mongo.stop();

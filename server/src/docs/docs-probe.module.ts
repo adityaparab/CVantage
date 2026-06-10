@@ -18,6 +18,8 @@ import { HealthModule } from '../health/health.module';
 import { MailService } from '../mail/mail.service';
 import { ResumesController } from '../resumes/resumes.controller';
 import { ResumesService } from '../resumes/resumes.service';
+import { UploadController } from '../resumes/upload.controller';
+import { UploadService } from '../resumes/upload.service';
 import { UsersController } from '../users/users.controller';
 
 /**
@@ -48,6 +50,7 @@ export const DOCS_FAKE_CONFIG = {
     { provide: PasswordHasherService, useValue: {} },
     { provide: LockoutService, useValue: {} },
     { provide: ResumesService, useValue: {} },
+    { provide: UploadService, useValue: {} },
     { provide: VerificationTokensService, useValue: {} },
     { provide: MailService, useValue: {} },
     { provide: AuditService, useValue: {} },
@@ -61,6 +64,7 @@ export const DOCS_FAKE_CONFIG = {
     PasswordHasherService,
     LockoutService,
     ResumesService,
+    UploadService,
     VerificationTokensService,
     MailService,
     AuditService,
@@ -77,6 +81,7 @@ class DocsStubsModule {}
     OAuthController,
     UsersController,
     ResumesController,
+    UploadController,
   ],
 })
 export class DocsProbeModule {}
