@@ -114,6 +114,7 @@ const envObjectSchema = z.object({
   THROTTLE_LIMIT: intString(120, 1),
   THROTTLE_AUTH_LIMIT: intString(10, 1),
   THROTTLE_UPLOAD_LIMIT: intString(10, 1),
+  ADMIN_STATS_CACHE_S: z.coerce.number().int().min(0).max(3600).default(60),
   SSE_HEARTBEAT_MS: z.coerce.number().int().min(50).max(60_000).default(15_000),
   SSE_MAX_CONNECTIONS_PER_USER: z.coerce.number().int().min(1).max(50).default(5),
   JOB_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(2),

@@ -90,6 +90,10 @@ export class AppConfigService {
     };
   }
 
+  get admin() {
+    return { statsCacheSeconds: this.get('ADMIN_STATS_CACHE_S') };
+  }
+
   get sse() {
     return {
       heartbeatMs: this.get('SSE_HEARTBEAT_MS'),

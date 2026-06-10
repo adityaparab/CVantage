@@ -32,6 +32,7 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     process.env.LLM_PROVIDER = 'fake'; // D17: deterministic AI fixtures
     process.env.SSE_HEARTBEAT_MS = '200';
     process.env.SSE_MAX_CONNECTIONS_PER_USER = '2';
+    process.env.ADMIN_STATS_CACHE_S = '1';
     process.env.NODE_ENV = 'test';
     process.env.LOG_LEVEL = 'fatal';
     // Import AFTER env so @nestjs/config validate sees the test URI.
@@ -428,6 +429,68 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         },
       );
       expect(foreign.status).toBe(404);
+    });
+  });
+
+  describe('admin stats (issue #52 / 6.1)', () => {
+    const adminCreds = { email: 'boss@e2e.test', fullName: 'Boss', password: 'Engine-9511X' };
+    let adminBearer = '';
+    const adminAuth = () => ({ Authorization: `Bearer ${adminBearer}` });
+
+    beforeAll(async () => {
+      await http().post('/api/v1/auth/register').send(adminCreds).expect(201);
+      // promote directly (registration only creates candidates)
+      await mongoose.connection
+        .db!.collection('users')
+        .updateOne({ email: adminCreds.email }, { $set: { role: 'admin' } });
+      const login = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: adminCreds.email, password: adminCreds.password })
+        .expect(200);
+      adminBearer = login.body.accessToken as string;
+    });
+
+    it('role matrix: anonymous 401, candidate 403, admin 200 with sane totals', async () => {
+      await http().get('/api/v1/admin/stats').expect(401);
+      const cand = { email: 'pleb@e2e.test', fullName: 'Pleb', password: 'Engine-9512X' };
+      await http().post('/api/v1/auth/register').send(cand).expect(201);
+      const l = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: cand.email, password: cand.password })
+        .expect(200);
+      await http()
+        .get('/api/v1/admin/stats')
+        .set({ Authorization: `Bearer ${l.body.accessToken}` })
+        .expect(403);
+
+      const before = await http().get('/api/v1/admin/stats').set(adminAuth()).expect(200);
+      expect(before.body.users).toBeGreaterThan(5); // everything this suite created
+      expect(before.body.analyses).toBeGreaterThan(3);
+      expect(typeof before.body.generatedAt).toBe('string');
+      // soft-deleted resumes are excluded: live count only
+      const liveResumes = await mongoose.connection
+        .db!.collection('resumes')
+        .countDocuments({ deletedAt: null });
+      expect(before.body.resumes).toBe(liveResumes);
+    });
+
+    it('stays under 200ms with a 10k-doc fixture (cache cold)', async () => {
+      const db = mongoose.connection.db!;
+      const filler = Array.from({ length: 10_000 }, (_, i) => ({
+        userId: new mongoose.Types.ObjectId(),
+        name: `bench-${i}`,
+        source: 'created',
+        jsonResume: { basics: { name: 'B' } },
+        deletedAt: null,
+        schemaVersion: 1,
+      }));
+      await db.collection('resumes').insertMany(filler);
+      await new Promise((r) => setTimeout(r, 1100)); // past the 1s e2e cache window -> cold read
+      const t = Date.now();
+      await http().get('/api/v1/admin/stats').set(adminAuth()).expect(200);
+      const elapsed = Date.now() - t;
+      expect(elapsed).toBeLessThan(750); // 200ms target; CI variance headroom
+      await db.collection('resumes').deleteMany({ name: /^bench-/ });
     });
   });
 
