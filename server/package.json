@@ -37,6 +37,7 @@
     "@nestjs/swagger": "^11",
     "@nestjs/terminus": "^11",
     "@nestjs/throttler": "^6",
+    "@sentry/node": "^10.57.0",
     "argon2": "^0.44.0",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",

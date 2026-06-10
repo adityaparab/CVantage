@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { PinoLogger } from 'nestjs-pino';
 
 import { AppConfigService } from '../../config';
+import { captureServerError } from '../../observability/sentry';
 
 import type { ErrorEnvelope } from './error-envelope';
 
@@ -49,6 +50,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const req = ctx.getRequest<Request & { id?: string | number }>();
 
     const { status, error, message, details } = this.normalize(exception);
+
+    // 5xx-class failures go to Sentry when enabled (#87); 4xx never do
+    captureServerError(exception, {
+      requestId: req.id !== undefined ? String(req.id) : undefined,
+      path: req.originalUrl ?? req.url,
+      status,
+    });
 
     const envelope: ErrorEnvelope = {
       statusCode: status,

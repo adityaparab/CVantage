@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 import { configureApp } from './app.setup';
 import { AppConfigService } from './config';
 import { setupSwagger } from './docs/swagger.setup';
+import { initServerSentry } from './observability/sentry';
 import { mountSpa } from './spa/spa.middleware';
 
 async function bootstrap(): Promise<void> {
@@ -14,6 +15,12 @@ async function bootstrap(): Promise<void> {
     bodyParser: false, // applied with explicit limits in configureApp
   });
   app.useLogger(app.get(Logger));
+
+  const config = app.get(AppConfigService);
+  await initServerSentry({
+    dsn: config.observability.sentryDsn,
+    environment: config.core.nodeEnv,
+  });
 
   configureApp(app);
   setupSwagger(app);

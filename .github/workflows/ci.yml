@@ -78,3 +78,23 @@ jobs:
         run: npx --yes @lhci/cli@0.14.x autorun
         env:
           LHCI_GITHUB_APP_TOKEN: ''
+
+  sentry-sourcemaps:
+    name: sentry sourcemaps (only when configured)
+    runs-on: ubuntu-latest
+    needs: [workspace]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: yarn }
+      - run: npm i -g yarn@1.22.22 --force
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace @cvantage/shared build && yarn workspace @cvantage/frontend build
+      - name: upload sourcemaps
+        if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: npx --yes @sentry/cli@2 sourcemaps upload --release ${{ github.sha }} frontend/dist/assets
