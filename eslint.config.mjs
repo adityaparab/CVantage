@@ -70,7 +70,12 @@ export default tseslint.config(
   // is the only sanctioned reader of environment values in server code.
   {
     files: ['server/**/*.ts'],
-    ignores: ['server/src/config/**', 'server/**/*.spec.ts', 'server/test/**'],
+    ignores: [
+      'server/src/config/**',
+      'server/src/scripts/**', // CLI entrypoints validate via validateEnv(process.env)
+      'server/**/*.spec.ts',
+      'server/test/**',
+    ],
     rules: {
       'no-restricted-properties': [
         'error',
