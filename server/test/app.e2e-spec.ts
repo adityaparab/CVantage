@@ -179,6 +179,89 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         .send({ name: 'no content', jobDescription: JD, resumeId: empty.body.id })
         .expect(422);
     });
+
+    it('suggestion apply/dismiss journey on the live resume (#43)', async () => {
+      const created = await http()
+        .post('/api/v1/analyses')
+        .set(auth())
+        .send({ name: 'Apply journey', jobDescription: JD, resumeId })
+        .expect(201);
+      const done = await pollAnalysis(created.body.id as string, 'completed');
+      const body = done as unknown as {
+        id: string;
+        result: { suggestions: Array<{ _id: string; fieldRef: string; proposedValue?: string }> };
+      };
+      const target = body.result.suggestions.find((s) => s.fieldRef === 'basics.label')!;
+      expect(target).toBeDefined();
+
+      const before = await http().get(`/api/v1/resumes/${resumeId}`).set(auth()).expect(200);
+      const applied = await http()
+        .post(`/api/v1/analyses/${body.id}/suggestions/${target._id}/apply`)
+        .set(auth())
+        .expect(201);
+      expect(applied.body.outcome).toBe('applied');
+      expect(applied.body.suggestion.applied).toBe(true);
+
+      const after = await http().get(`/api/v1/resumes/${resumeId}`).set(auth()).expect(200);
+      expect(after.body.jsonResume.basics.label).toBe('Senior Platform Engineer');
+      expect(after.body.version).toBeGreaterThan(before.body.version as number); // OCC bumped
+      expect(after.body.jsonResume.basics.name).toBe('Ada Lovelace'); // neighbors untouched
+
+      const again = await http()
+        .post(`/api/v1/analyses/${body.id}/suggestions/${target._id}/apply`)
+        .set(auth())
+        .expect(201);
+      expect(again.body.outcome).toBe('already_applied');
+
+      const noValue = body.result.suggestions.find((s) => !s.proposedValue)!;
+      await http()
+        .post(`/api/v1/analyses/${body.id}/suggestions/${noValue._id}/apply`)
+        .set(auth())
+        .expect(422);
+      const dismissed = await http()
+        .post(`/api/v1/analyses/${body.id}/suggestions/${noValue._id}/dismiss`)
+        .set(auth())
+        .expect(201);
+      expect(dismissed.body.dismissed).toBe(true);
+    });
+
+    it('list + filters; state-machine 409s; foreign 404s (#43)', async () => {
+      const page = await http()
+        .get(`/api/v1/analyses?resumeId=${resumeId}&limit=5`)
+        .set(auth())
+        .expect(200);
+      expect(page.body.total).toBeGreaterThanOrEqual(2);
+      expect(page.body.items[0].result?.suggestions).toBeUndefined(); // slim rows
+      const failedOnly = await http().get('/api/v1/analyses?status=failed').set(auth()).expect(200);
+      expect(
+        (failedOnly.body.items as Array<{ status: string }>).every((i) => i.status === 'failed'),
+      ).toBe(true);
+
+      const completedId = (page.body.items as Array<{ id: string; status: string }>).find(
+        (i) => i.status === 'completed',
+      )!.id;
+      await http().post(`/api/v1/analyses/${completedId}/cancel`).set(auth()).expect(409);
+      await http().post(`/api/v1/analyses/${completedId}/retry`).set(auth()).expect(409);
+
+      const failedId = (failedOnly.body.items as Array<{ id: string }>)[0]!.id;
+      const retried = await http()
+        .post(`/api/v1/analyses/${failedId}/retry`)
+        .set(auth())
+        .expect(202);
+      expect(retried.body.status).toBe('pending');
+      await pollAnalysis(failedId, 'failed'); // deterministic marker fails it again
+
+      const other = { email: 'analyst2@e2e.test', fullName: 'Other', password: 'Engine-7411X' };
+      await http().post('/api/v1/auth/register').send(other).expect(201);
+      const l2 = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: other.email, password: other.password })
+        .expect(200);
+      await http()
+        .get(`/api/v1/analyses/${completedId}`)
+        .set({ Authorization: `Bearer ${l2.body.accessToken}` })
+        .expect(404);
+    });
   });
 
   describe('phase-3 hardening sweep (issue #37 / 3.7)', () => {

@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { z } from 'zod';
 
 import { zodDto } from '../../common';
+import { AnalysisStatus } from '../../database/schemas/common';
 
 export const createAnalysisSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -31,4 +32,29 @@ export class CreateAnalysisDto extends zodDto(createAnalysisSchema) {
     example: '665f1c2ab79e8e3d4c8a9f01',
   })
   declare resumeId: Types.ObjectId;
+}
+
+export const listAnalysesSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  resumeId: z
+    .string()
+    .regex(/^[a-f0-9]{24}$/i)
+    .transform((v) => new Types.ObjectId(v))
+    .optional(),
+  status: z.enum(AnalysisStatus).optional(),
+});
+
+export class ListAnalysesDto extends zodDto(listAnalysesSchema) {
+  @ApiProperty({ required: false, default: 1, minimum: 1 })
+  declare page: number;
+
+  @ApiProperty({ required: false, default: 20, minimum: 1, maximum: 100 })
+  declare limit: number;
+
+  @ApiProperty({ required: false, description: 'Only analyses of this resume' })
+  declare resumeId?: Types.ObjectId;
+
+  @ApiProperty({ required: false, enum: AnalysisStatus, description: 'Filter by status' })
+  declare status?: AnalysisStatus;
 }
