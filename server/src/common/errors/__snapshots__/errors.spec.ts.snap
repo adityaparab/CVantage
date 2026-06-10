@@ -1,0 +1,122 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`error contract (issue #14 / 1.5) GET /bad renders the envelope for 400 1`] = `
+{
+  "error": "Bad Request",
+  "message": "nope",
+  "path": "/bad",
+  "requestId": "<requestId>",
+  "statusCode": 400,
+  "timestamp": "<timestamp>",
+}
+`;
+
+exports[`error contract (issue #14 / 1.5) GET /boom renders the envelope for 500 1`] = `
+{
+  "error": "Internal Server Error",
+  "message": "secret-internal-detail",
+  "path": "/boom",
+  "requestId": "<requestId>",
+  "statusCode": 500,
+  "timestamp": "<timestamp>",
+}
+`;
+
+exports[`error contract (issue #14 / 1.5) GET /cast renders the envelope for 400 1`] = `
+{
+  "error": "Bad Request",
+  "message": "Malformed identifier or value",
+  "path": "/cast",
+  "requestId": "<requestId>",
+  "statusCode": 400,
+  "timestamp": "<timestamp>",
+}
+`;
+
+exports[`error contract (issue #14 / 1.5) GET /domain renders the envelope for 409 1`] = `
+{
+  "details": {
+    "name": "My Resume",
+  },
+  "error": "Resume Name Taken",
+  "message": "A live resume already uses this name",
+  "path": "/domain",
+  "requestId": "<requestId>",
+  "statusCode": 409,
+  "timestamp": "<timestamp>",
+}
+`;
+
+exports[`error contract (issue #14 / 1.5) GET /dup renders the envelope for 409 1`] = `
+{
+  "details": {
+    "duplicate": [
+      "email",
+    ],
+  },
+  "error": "Conflict",
+  "message": "A record with the same unique value already exists",
+  "path": "/dup",
+  "requestId": "<requestId>",
+  "statusCode": 409,
+  "timestamp": "<timestamp>",
+}
+`;
+
+exports[`error contract (issue #14 / 1.5) GET /forbidden renders the envelope for 403 1`] = `
+{
+  "error": "Forbidden",
+  "message": "Forbidden",
+  "path": "/forbidden",
+  "requestId": "<requestId>",
+  "statusCode": 403,
+  "timestamp": "<timestamp>",
+}
+`;
+
+exports[`error contract (issue #14 / 1.5) GET /no-such-route renders the envelope for 404 1`] = `
+{
+  "error": "Not Found",
+  "message": "Cannot GET /no-such-route",
+  "path": "/no-such-route",
+  "requestId": "<requestId>",
+  "statusCode": 404,
+  "timestamp": "<timestamp>",
+}
+`;
+
+exports[`error contract (issue #14 / 1.5) GET /throttled renders the envelope for 429 1`] = `
+{
+  "error": "Too Many Requests",
+  "message": "Rate limit exceeded",
+  "path": "/throttled",
+  "requestId": "<requestId>",
+  "statusCode": 429,
+  "timestamp": "<timestamp>",
+}
+`;
+
+exports[`error contract (issue #14 / 1.5) GET /unauthorized renders the envelope for 401 1`] = `
+{
+  "error": "Unauthorized",
+  "message": "Unauthorized",
+  "path": "/unauthorized",
+  "requestId": "<requestId>",
+  "statusCode": 401,
+  "timestamp": "<timestamp>",
+}
+`;
+
+exports[`error contract (issue #14 / 1.5) GET /version renders the envelope for 409 1`] = `
+{
+  "details": {
+    "conflict": "version",
+  },
+  "error": "Conflict",
+  "message": "The record was modified by another request — reload and retry",
+  "path": "/version",
+  "requestId": "<requestId>",
+  "statusCode": 409,
+  "timestamp": "<timestamp>",
+}
+`;
