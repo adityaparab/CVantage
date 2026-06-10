@@ -14,6 +14,11 @@ describe('AuthService (issue #22 / 2.1)', () => {
     background: jest.fn(),
     sendEmailVerification: jest.fn().mockResolvedValue(undefined),
   };
+  const lockout = {
+    check: jest.fn().mockReturnValue({ blocked: false, retryAfterS: 0 }),
+    recordFailure: jest.fn().mockResolvedValue(undefined),
+    recordSuccess: jest.fn(),
+  };
 
   const makeModel = () => ({
     create: jest.fn(),
@@ -52,6 +57,7 @@ describe('AuthService (issue #22 / 2.1)', () => {
       audit as never,
       verification as never,
       mail as never,
+      lockout as never,
     );
 
     const out = await service.register(
@@ -80,6 +86,7 @@ describe('AuthService (issue #22 / 2.1)', () => {
       audit as never,
       verification as never,
       mail as never,
+      lockout as never,
     );
 
     const out = await service.login({ email: 'ADA@example.test', password: 'Engine-4242' });
@@ -87,6 +94,7 @@ describe('AuthService (issue #22 / 2.1)', () => {
     expect(model.findOne).toHaveBeenCalledWith({ email: 'ada@example.test' });
     expect(model.updateOne).toHaveBeenCalled();
     expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'user.login' }));
+    expect(lockout.recordSuccess).toHaveBeenCalledWith('ADA@example.test');
   });
 
   it('wrong password and unknown email return the identical 401', async () => {
@@ -99,6 +107,7 @@ describe('AuthService (issue #22 / 2.1)', () => {
       audit as never,
       verification as never,
       mail as never,
+      lockout as never,
     );
 
     const wrongPw = service.login({ email: 'ada@example.test', password: 'Wrong-99999' });
@@ -106,6 +115,7 @@ describe('AuthService (issue #22 / 2.1)', () => {
     const unknown = service.login({ email: 'ghost@example.test', password: 'Wrong-99999' });
     await expect(unknown).rejects.toThrow('Invalid email or password');
     expect(audit.record).not.toHaveBeenCalled();
+    expect(lockout.recordFailure).toHaveBeenCalledTimes(2);
   });
 
   it('burns hashing work for unknown users (timing-equalized)', async () => {
@@ -118,6 +128,7 @@ describe('AuthService (issue #22 / 2.1)', () => {
       audit as never,
       verification as never,
       mail as never,
+      lockout as never,
     );
 
     await expect(
@@ -137,6 +148,7 @@ describe('AuthService (issue #22 / 2.1)', () => {
       audit as never,
       verification as never,
       mail as never,
+      lockout as never,
     );
 
     await expect(

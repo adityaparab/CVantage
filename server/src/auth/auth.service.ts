@@ -1,4 +1,10 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
@@ -6,8 +12,23 @@ import { AuditService } from '../audit/audit.service';
 import { AuditAction, TokenKind, User, UserDocument, UserStatus } from '../database/schemas';
 import { MailService } from '../mail/mail.service';
 
+import { LockoutService } from './lockout.service';
 import { PasswordHasherService } from './password-hasher.service';
 import { VerificationTokensService } from './verification-tokens.service';
+
+/** 429 carrying Retry-After context for the lockout (issue #28 / 2.7). */
+export class TooManyRequestsException extends HttpException {
+  constructor(readonly retryAfterS: number) {
+    super(
+      {
+        error: 'Too Many Requests',
+        message: 'Too many failed attempts — try again later',
+        details: { retryAfterS },
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+}
 
 export interface SanitizedUser {
   id: string;
@@ -35,6 +56,7 @@ export class AuthService {
     private readonly audit: AuditService,
     private readonly verification: VerificationTokensService,
     private readonly mail: MailService,
+    private readonly lockout: LockoutService,
   ) {}
 
   sanitize(user: UserDocument): SanitizedUser {
@@ -64,14 +86,22 @@ export class AuthService {
     return this.sanitize(user);
   }
 
-  async login(input: { email: string; password: string }, ip?: string) {
+  async login(input: { email: string; password: string }, ip = 'unknown') {
+    const gate = this.lockout.check(input.email, ip);
+    if (gate.blocked) {
+      throw new TooManyRequestsException(gate.retryAfterS);
+    }
     const user = await this.users
       .findOne({ email: input.email.toLowerCase() })
       .select('+passwordHash')
       .exec();
 
     const ok = await this.hasher.verifyOrBurn(user?.passwordHash, input.password);
-    if (!user || !ok) throw new UnauthorizedException(INVALID_CREDENTIALS);
+    if (!user || !ok) {
+      await this.lockout.recordFailure(input.email, ip);
+      throw new UnauthorizedException(INVALID_CREDENTIALS);
+    }
+    this.lockout.recordSuccess(input.email);
 
     if (user.status === UserStatus.DEACTIVATED) {
       throw new ForbiddenException('This account has been deactivated');

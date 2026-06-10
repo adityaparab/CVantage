@@ -6,6 +6,7 @@ import { AuditService } from '../audit/audit.service';
 import { AccountController } from '../auth/account.controller';
 import { AuthController } from '../auth/auth.controller';
 import { AuthService } from '../auth/auth.service';
+import { LockoutService } from '../auth/lockout.service';
 import { OAuthController } from '../auth/oauth/oauth.controller';
 import { OAuthService } from '../auth/oauth/oauth.service';
 import { PasswordHasherService } from '../auth/password-hasher.service';
@@ -43,6 +44,7 @@ export const DOCS_FAKE_CONFIG = {
     { provide: OAuthService, useValue: { enabledProviders: () => ({}) } },
     { provide: TokensService, useValue: {} },
     { provide: PasswordHasherService, useValue: {} },
+    { provide: LockoutService, useValue: {} },
     { provide: VerificationTokensService, useValue: {} },
     { provide: MailService, useValue: {} },
     { provide: AuditService, useValue: {} },
@@ -54,6 +56,7 @@ export const DOCS_FAKE_CONFIG = {
     OAuthService,
     TokensService,
     PasswordHasherService,
+    LockoutService,
     VerificationTokensService,
     MailService,
     AuditService,

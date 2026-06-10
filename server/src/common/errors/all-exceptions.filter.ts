@@ -67,6 +67,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.debug({ status, requestId: envelope.requestId }, `${error}: ${message}`);
     }
 
+    const retryAfterS = (details as { retryAfterS?: number } | undefined)?.retryAfterS;
+    if (status === 429 && typeof retryAfterS === 'number') {
+      res.setHeader('Retry-After', String(retryAfterS));
+    }
     res.status(status).json(envelope);
   }
 

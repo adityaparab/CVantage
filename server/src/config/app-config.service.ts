@@ -123,6 +123,12 @@ export class AppConfigService {
       authLimit: this.get('THROTTLE_AUTH_LIMIT'),
       uploadLimit: this.get('THROTTLE_UPLOAD_LIMIT'),
       analysisLimit: this.get('THROTTLE_ANALYSIS_LIMIT'),
+      lockout: {
+        maxFailures: this.get('LOCKOUT_MAX_FAILURES'),
+        windowS: this.get('LOCKOUT_WINDOW_S'),
+        baseBlockS: this.get('LOCKOUT_BASE_BLOCK_S'),
+        maxBlockS: this.get('LOCKOUT_MAX_BLOCK_S'),
+      },
     };
   }
 

@@ -309,6 +309,29 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     });
   });
 
+  describe('auth lockout (issue #28 / 2.7)', () => {
+    it('repeated failures lock the account — even the correct password 429s', async () => {
+      const creds = { email: 'locked@e2e.test', fullName: 'Locky', password: 'Engine-4242X' };
+      await http().post('/api/v1/auth/register').send(creds).expect(201);
+      for (let i = 0; i < 5; i++) {
+        await http()
+          .post('/api/v1/auth/login')
+          .send({ email: creds.email, password: 'Wrong-12345' })
+          .expect(401);
+      }
+      const blocked = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(429);
+      expect(blocked.headers['retry-after']).toBeDefined();
+      expect(blocked.body.details.retryAfterS).toBeGreaterThan(0);
+      const audits = await mongoose.connection
+        .db!.collection('auditlogs')
+        .countDocuments({ action: 'auth.lockout' });
+      expect(audits).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   it('GET /api/v1/health/ready → 503 once mongo stops (readiness flip)', async () => {
     await mongoose.connection.close(); // sever the app's connection
     await mongo.stop();

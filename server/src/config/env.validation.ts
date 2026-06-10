@@ -113,6 +113,10 @@ const envObjectSchema = z.object({
   THROTTLE_AUTH_LIMIT: intString(10, 1),
   THROTTLE_UPLOAD_LIMIT: intString(10, 1),
   THROTTLE_ANALYSIS_LIMIT: intString(10, 1),
+  LOCKOUT_MAX_FAILURES: intString(5, 1),
+  LOCKOUT_WINDOW_S: intString(900, 10),
+  LOCKOUT_BASE_BLOCK_S: intString(60, 5),
+  LOCKOUT_MAX_BLOCK_S: intString(3600, 60),
 
   /* ------------------- observability (all optional) ---------------- */
   SENTRY_DSN: z.string().url().optional(),

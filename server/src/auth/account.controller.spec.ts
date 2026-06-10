@@ -21,6 +21,7 @@ describe('AccountController (issue #26 / 2.5)', () => {
   const hasher = { hash: jest.fn().mockResolvedValue('$argon2id$fresh') };
   const tokens = { revokeAllForUser: jest.fn().mockResolvedValue(2) };
   const audit = { record: jest.fn() };
+  const lockout = { hit: jest.fn().mockReturnValue({ blocked: false, retryAfterS: 0 }) };
 
   const controller = new AccountController(
     users as never,
@@ -29,6 +30,7 @@ describe('AccountController (issue #26 / 2.5)', () => {
     hasher as never,
     tokens as never,
     audit as never,
+    lockout as never,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -47,7 +49,7 @@ describe('AccountController (issue #26 / 2.5)', () => {
     users.findOne.mockReturnValue({
       exec: async () => ({ _id: userId, email: 'ada@x.test' }),
     });
-    const out = await controller.forgotPassword({ email: 'ADA@x.test' } as never);
+    const out = await controller.forgotPassword({ email: 'ADA@x.test' } as never, '1.1.1.1');
     expect(verification.issue).toHaveBeenCalledWith(TokenKind.PASSWORD_RESET, userId);
     expect(mail.background).toHaveBeenCalled();
     expect(out.message).toMatch(/reset link/);
@@ -55,7 +57,7 @@ describe('AccountController (issue #26 / 2.5)', () => {
 
   it('forgot-password for unknown email: identical body, no token, no mail', async () => {
     users.findOne.mockReturnValue({ exec: async () => null });
-    const out = await controller.forgotPassword({ email: 'ghost@x.test' } as never);
+    const out = await controller.forgotPassword({ email: 'ghost@x.test' } as never, '1.1.1.1');
     expect(verification.issue).not.toHaveBeenCalled();
     expect(mail.background).not.toHaveBeenCalled();
     expect(out.message).toMatch(/reset link/);

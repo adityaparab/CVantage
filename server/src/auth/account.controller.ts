@@ -16,8 +16,10 @@ import { ApiStandardErrors } from '../common/docs/api-standard-errors.decorator'
 import { AuditAction, TokenKind, User } from '../database/schemas';
 import { MailService } from '../mail/mail.service';
 
+import { TooManyRequestsException } from './auth.service';
 import { Public } from './decorators';
 import { passwordSchema } from './dto/auth.dtos';
+import { LockoutService } from './lockout.service';
 import { PasswordHasherService } from './password-hasher.service';
 import { TokensService } from './tokens.service';
 import { VerificationTokensService } from './verification-tokens.service';
@@ -54,6 +56,7 @@ export class AccountController {
     private readonly hasher: PasswordHasherService,
     private readonly tokens: TokensService,
     private readonly audit: AuditService,
+    private readonly lockout: LockoutService,
   ) {}
 
   @Post('verify-email')
@@ -86,7 +89,12 @@ export class AccountController {
     example: { message: 'If that email belongs to an account, a reset link is on its way.' },
   })
   @ApiStandardErrors(HttpStatus.UNPROCESSABLE_ENTITY)
-  async forgotPassword(@Body() body: ForgotPasswordDto): Promise<{ message: string }> {
+  async forgotPassword(
+    @Body() body: ForgotPasswordDto,
+    @Ip() ip: string,
+  ): Promise<{ message: string }> {
+    const gate = this.lockout.hit('forgot', body.email!, ip ?? 'unknown');
+    if (gate.blocked) throw new TooManyRequestsException(gate.retryAfterS);
     const user = await this.users.findOne({ email: body.email!.toLowerCase() }).exec();
     if (user) {
       const token = await this.verification.issue(TokenKind.PASSWORD_RESET, user._id);

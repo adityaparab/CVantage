@@ -111,6 +111,7 @@ export enum AuditAction {
   RESUME_DELETE = 'resume.delete',
   AUTH_REFRESH_REUSE = 'auth.refresh_reuse',
   USER_PASSWORD_RESET = 'user.password_reset',
+  AUTH_LOCKOUT = 'auth.lockout',
 }
 
 /** json-resume partial date: "YYYY" | "YYYY-MM" | "YYYY-MM-DD" */
