@@ -24,3 +24,6 @@ nohup.out
 .idea/
 .DS_Store
 Thumbs.db
+
+# git bundles (sync artifacts)
+*.bundle
