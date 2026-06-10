@@ -852,6 +852,47 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
       }
       expect(failures).toEqual([]);
     });
+
+    it('system-wide IDOR matrix: every per-resource route hides foreign data (#90)', async () => {
+      // attacker persona
+      const foe = { email: 'idor-foe@e2e.test', fullName: 'Foe', password: 'Engine-9999X' };
+      await http().post('/api/v1/auth/register').send(foe).expect(201);
+      const l = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: foe.email, password: foe.password })
+        .expect(200);
+      const foeAuth = { Authorization: `Bearer ${l.body.accessToken}` };
+
+      // victim data: any existing resume + analysis + notification from earlier suites
+      const resume = await mongoose.connection.db!.collection('resumes').findOne({ deletedAt: null });
+      const analysis = await mongoose.connection.db!.collection('analyses').findOne({});
+      const notification = await mongoose.connection.db!.collection('notifications').findOne({});
+
+      const cases: Array<{ method: 'get' | 'post' | 'patch' | 'delete'; path: string }> = [
+        { method: 'get', path: `/api/v1/resumes/${resume!._id}` },
+        { method: 'patch', path: `/api/v1/resumes/${resume!._id}` },
+        { method: 'delete', path: `/api/v1/resumes/${resume!._id}` },
+        { method: 'post', path: `/api/v1/resumes/${resume!._id}/reparse` },
+        { method: 'get', path: `/api/v1/resumes/${resume!._id}/export?format=docx` },
+        { method: 'get', path: `/api/v1/resumes/${resume!._id}/analyze` ? `/api/v1/analyses/${analysis!._id}` : '' },
+        { method: 'post', path: `/api/v1/analyses/${analysis!._id}/retry` },
+        { method: 'post', path: `/api/v1/analyses/${analysis!._id}/cancel` },
+        { method: 'post', path: `/api/v1/notifications/${notification!._id}/clear` },
+      ];
+      const failures: string[] = [];
+      for (const c of cases) {
+        const res = await request(app.getHttpServer() as App)
+          [c.method](c.path)
+          .set(foeAuth)
+          .send({ name: 'x', version: 1 });
+        if (![404, 409].includes(res.status) || res.status === 409) {
+          // 404 is the only acceptable outcome - existence-hiding
+          if (res.status !== 404) failures.push(`${c.method.toUpperCase()} ${c.path} -> ${res.status}`);
+        }
+      }
+      expect(failures).toEqual([]);
+    });
+
   });
 
   describe('phase-3 hardening sweep (issue #37 / 3.7)', () => {

@@ -129,3 +129,23 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  security:
+    name: audit + secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: yarn }
+      - run: npm i -g yarn@1.22.22 --force
+      - run: yarn install --frozen-lockfile
+      - name: dependency audit (fail on high+)
+        run: |
+          yarn audit --level high --groups dependencies; code=$?
+          # yarn1 exit code is a bitmask; 8=high, 16=critical
+          if [ $((code & 24)) -ne 0 ]; then echo 'high/critical advisories found'; exit 1; fi
+          echo 'no high/critical advisories'
