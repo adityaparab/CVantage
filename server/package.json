@@ -10,19 +10,25 @@
     "lint": "eslint . --max-warnings 0 --no-error-on-unmatched-pattern",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "echo \"@cvantage/server: test placeholder — harness in issue #19 (1.10)\""
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@nestjs/common": "^11",
+    "@nestjs/config": "^4",
     "@nestjs/core": "^11",
     "@nestjs/platform-express": "^11",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@nestjs/cli": "^11",
     "@nestjs/schematics": "^11",
     "@types/express": "^5.0.6",
-    "@types/node": "^25.9.2"
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.2",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11"
   }
 }

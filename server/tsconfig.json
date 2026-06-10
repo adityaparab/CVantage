@@ -8,7 +8,7 @@
     "paths": {
       "@app/*": ["./src/*"]
     },
-    "types": ["node"],
+    "types": ["node", "jest"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
@@ -20,9 +20,10 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "sourceMap": true,
-    "incremental": true,
     "declaration": false,
-    "removeComments": false
+    "removeComments": false,
+    "isolatedModules": true,
+    "rootDir": "./src"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

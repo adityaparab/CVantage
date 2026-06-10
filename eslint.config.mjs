@@ -1,4 +1,4 @@
-// CVantage — root ESLint flat config (ESLint 9).
+// CVantage — root ESLint flat config (ESLint 9+).
 // Zero-warning policy: all lint scripts run with --max-warnings 0.
 // Type-aware rules (projectService) are enabled per-workspace as the
 // TypeScript scaffolds land (server: #10 / frontend: #58 / shared: #31).
@@ -58,12 +58,29 @@ export default tseslint.config(
   // Node contexts: server, shared, tooling scripts, root configs.
   {
     files: [
-      'server/**/*.{ts,js}',
+      'server/**/*.{ts,js,cjs}',
       'shared/**/*.{ts,js}',
       'scripts/**/*.{mjs,js}',
       '*.{mjs,js,cjs}',
     ],
     languageOptions: { globals: { ...globals.node } },
+  },
+
+  // Configuration discipline (issue #11 / 1.2): the validated AppConfigService
+  // is the only sanctioned reader of environment values in server code.
+  {
+    files: ['server/**/*.ts'],
+    ignores: ['server/src/config/**', 'server/**/*.spec.ts', 'server/test/**'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'process',
+          property: 'env',
+          message: 'Read configuration via AppConfigService (server/src/config) instead.',
+        },
+      ],
+    },
   },
 
   // React (frontend only).
