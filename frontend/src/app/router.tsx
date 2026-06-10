@@ -21,6 +21,7 @@ import { env } from '@/lib/env';
 
 const Showcase = lazy(() => import('@/features/showcase/Showcase'));
 const LandingPage = lazy(() => import('@/features/marketing/LandingPage'));
+const ApplyScreen = lazy(() => import('@/features/apply/ApplyScreen'));
 const AnalysisScreen = lazy(() => import('@/features/analyses/AnalysisScreen'));
 const AnalyzeScreen = lazy(() => import('@/features/analyses/AnalyzeScreen'));
 const ReviewScreen = lazy(() => import('@/features/upload-review/ReviewScreen'));
@@ -101,7 +102,7 @@ export const router = createBrowserRouter([
           { path: '/dashboard', element: lazyPage(<DashboardScreen />) },
           { path: '/analyses', element: <AnalysesPage /> },
           { path: '/analyses/:id', element: lazyPage(<AnalysisScreen />) },
-          { path: '/analyses/:id/apply', element: <AnalysesPage /> },
+          { path: '/analyses/:id/apply', element: lazyPage(<ApplyScreen />) },
           { path: '/resumes/new', element: lazyPage(<CreateResumeScreen />) },
           { path: '/resumes/upload', element: lazyPage(<UploadScreen />) },
           { path: '/resumes/:id/edit', element: lazyPage(<ResumeViewScreen />) },
