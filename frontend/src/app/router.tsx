@@ -7,7 +7,7 @@ import AdminShell from './layouts/AdminShell';
 import AppShell from './layouts/AppShell';
 import MarketingLayout from './layouts/MarketingLayout';
 import { ForbiddenPage, NotFoundPage } from './pages/errors';
-import { AdminModelsPage, AdminUsersPage } from './pages/placeholders';
+import { AdminModelsPage } from './pages/placeholders';
 import { QueryProvider } from './query';
 
 import { Skeleton, ToastProvider } from '@/components/ui';
@@ -17,6 +17,8 @@ import { env } from '@/lib/env';
 const Showcase = lazy(() => import('@/features/showcase/Showcase'));
 const LandingPage = lazy(() => import('@/features/marketing/LandingPage'));
 const AnalysesListScreen = lazy(() => import('@/features/analyses/AnalysesListScreen'));
+const AdminUsersScreen = lazy(() => import('@/features/admin/AdminUsersScreen'));
+const AdminUserDetailScreen = lazy(() => import('@/features/admin/AdminUserDetailScreen'));
 const AdminDashboardScreen = lazy(() => import('@/features/admin/AdminDashboardScreen'));
 const ApplyScreen = lazy(() => import('@/features/apply/ApplyScreen'));
 const AnalysisScreen = lazy(() => import('@/features/analyses/AnalysisScreen'));
@@ -116,7 +118,8 @@ export const router = createBrowserRouter([
         ),
         children: [
           { index: true, element: lazyPage(<AdminDashboardScreen />) },
-          { path: 'users', element: <AdminUsersPage /> },
+          { path: 'users', element: lazyPage(<AdminUsersScreen />) },
+          { path: 'users/:id', element: lazyPage(<AdminUserDetailScreen />) },
           { path: 'settings', element: <AdminModelsPage /> },
         ],
       },

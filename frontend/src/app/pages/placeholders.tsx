@@ -13,15 +13,6 @@ function Placeholder({ title, note, icon }: { title: string; note: string; icon?
   );
 }
 
-export function AdminUsersPage() {
-  return (
-    <Placeholder
-      title="Users"
-      note="Admin user management UI lands with Phase 9 (#79)."
-      icon="👥"
-    />
-  );
-}
 export function AdminModelsPage() {
   return (
     <Placeholder title="AI models" note="Model settings UI lands with Phase 9 (#81)." icon="🤖" />
