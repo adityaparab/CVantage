@@ -1,5 +1,7 @@
 # CVantage
 
+[![CI](https://github.com/adityaparab/CVantage/actions/workflows/ci.yml/badge.svg)](https://github.com/adityaparab/CVantage/actions/workflows/ci.yml)
+
 **AI-powered resume analysis for job seekers.** Build or upload a resume, run it against any job description, and get scored insights — ATS compatibility, strengths and gaps, field-level improvement suggestions, and tailored interview questions — then apply suggestions and export to PDF/DOCX.
 
 > 🚧 **Under active development.** The implementation plan lives in [`PLAN.md`](./PLAN.md); work is tracked in [GitHub issues](https://github.com/adityaparab/CVantage/issues) (12 phase epics, one issue at a time).
@@ -22,7 +24,7 @@ yarn install
 
 Local development setup (Mongo via Docker Compose, dev servers, environment variables) is delivered incrementally by the Phase 0–1 issues — this section is completed as they land:
 
-- [ ] `docker compose --profile db up -d` — local MongoDB (issue #8)
+- [x] `docker compose --profile db up -d` — local MongoDB
 - [ ] `yarn dev:server` / `yarn dev:frontend` — dev servers (issues #10, #58)
 - [ ] `.env` configuration — see `.env.example` (issue #11)
 
@@ -38,6 +40,4 @@ database/  Canonical Mongoose schema reference
 
 ## Documents
 
-- [`PLAN.md`](./PLAN.md) — full implementation plan (phases, architecture, decisions)
-- [`PROMPT.md`](./PROMPT.md) — product requirements
-- [`cvantage-mockup.html`](./cvantage-mockup.html) — UI reference
+- [`PLAN.md`](./PLAN.md) — full implementation plan (phases, archite

@@ -1,0 +1,44 @@
+# CVantage CI — skeleton (issue #7 / 0.6). Extended to the full pipeline in #95 (11.3).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  root-checks:
+    name: lint & format (repo-wide)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+      # GitHub runners ship Yarn 1 preinstalled — no corepack.
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn format:check
+
+  workspace:
+    name: ${{ matrix.workspace }} — typecheck, test, build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [server, frontend, shared]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace @cvantage/${{ matrix.workspace }} typecheck
+      - run: yarn workspace @cvantage/${{ matrix.workspace }} test
+      - run: yarn workspace @cvantage/${{ matrix.workspace }} build

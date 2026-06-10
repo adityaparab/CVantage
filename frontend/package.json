@@ -7,6 +7,7 @@
     "lint": "eslint . --max-warnings 0 --no-error-on-unmatched-pattern",
     "lint:fix": "eslint . --fix",
     "test": "echo \"@cvantage/frontend: test placeholder — harness in issue #63 (7.6)\"",
-    "build": "echo \"@cvantage/frontend: build placeholder — scaffold in issue #58 (7.1)\""
+    "build": "echo \"@cvantage/frontend: build placeholder — scaffold in issue #58 (7.1)\"",
+    "typecheck": "echo \"@cvantage/frontend: typecheck placeholder — tsconfig lands in #58 (7.1)\""
   }
 }
