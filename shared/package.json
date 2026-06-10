@@ -5,7 +5,7 @@
   "description": "CVantage shared zod schemas, DTOs and enums — content lands in issue #31",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.esm.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint . --max-warnings 0 --no-error-on-unmatched-pattern",
     "lint:fix": "eslint . --fix",
@@ -14,5 +14,13 @@
   "types": "dist/index.d.ts",
   "dependencies": {
     "zod": "^4.4.3"
+  },
+  "module": "dist/esm/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/index.js"
+    }
   }
 }
