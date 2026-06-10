@@ -16,6 +16,8 @@ import { AppConfigService } from '../config';
 import { User } from '../database/schemas';
 import { HealthModule } from '../health/health.module';
 import { MailService } from '../mail/mail.service';
+import { ResumesController } from '../resumes/resumes.controller';
+import { ResumesService } from '../resumes/resumes.service';
 import { UsersController } from '../users/users.controller';
 
 /**
@@ -45,6 +47,7 @@ export const DOCS_FAKE_CONFIG = {
     { provide: TokensService, useValue: {} },
     { provide: PasswordHasherService, useValue: {} },
     { provide: LockoutService, useValue: {} },
+    { provide: ResumesService, useValue: {} },
     { provide: VerificationTokensService, useValue: {} },
     { provide: MailService, useValue: {} },
     { provide: AuditService, useValue: {} },
@@ -57,6 +60,7 @@ export const DOCS_FAKE_CONFIG = {
     TokensService,
     PasswordHasherService,
     LockoutService,
+    ResumesService,
     VerificationTokensService,
     MailService,
     AuditService,
@@ -67,6 +71,12 @@ class DocsStubsModule {}
 
 @Module({
   imports: [DocsStubsModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule],
-  controllers: [AuthController, AccountController, OAuthController, UsersController],
+  controllers: [
+    AuthController,
+    AccountController,
+    OAuthController,
+    UsersController,
+    ResumesController,
+  ],
 })
 export class DocsProbeModule {}

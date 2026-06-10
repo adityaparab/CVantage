@@ -332,6 +332,100 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     });
   });
 
+  describe('resume crud (issue #32 / 3.2)', () => {
+    const creds = { email: 'crud@e2e.test', fullName: 'Crud', password: 'Engine-4242X' };
+    let bearer = '';
+    const auth = () => ({ Authorization: `Bearer ${bearer}` });
+
+    beforeAll(async () => {
+      await http().post('/api/v1/auth/register').send(creds).expect(201);
+      const login = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      bearer = login.body.accessToken as string;
+    });
+
+    it('full journey: create → list → get → patch (OCC) → delete frees the name', async () => {
+      const created = await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({
+          name: 'My Resume',
+          jsonResume: { basics: { name: 'Ada', summary: '  ' }, skills: [] },
+        })
+        .expect(201);
+      const id = created.body.id as string;
+      // placeholder pruning end-to-end
+      expect(created.body.jsonResume).toEqual({ basics: { name: 'Ada' } });
+      const stored = await mongoose.connection
+        .db!.collection('resumes')
+        .findOne({ name: 'My Resume' });
+      expect(stored!.jsonResume).toEqual({ basics: { name: 'Ada' } });
+
+      // duplicate live name (case-insensitive) → 409
+      await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({ name: 'my resume', jsonResume: {} })
+        .expect(409);
+
+      const list = await http().get('/api/v1/resumes?limit=10').set(auth()).expect(200);
+      expect(list.body.total).toBe(1);
+      expect(list.body.items[0]).not.toHaveProperty('jsonResume');
+
+      const got = await http().get(`/api/v1/resumes/${id}`).set(auth()).expect(200);
+      const v = got.body.version as number;
+
+      const patched = await http()
+        .patch(`/api/v1/resumes/${id}`)
+        .set(auth())
+        .send({ name: 'Renamed', version: v })
+        .expect(200);
+      expect(patched.body.version).toBe(v + 1);
+
+      // stale version → 409 with currentVersion
+      const conflict = await http()
+        .patch(`/api/v1/resumes/${id}`)
+        .set(auth())
+        .send({ name: 'Loser', version: v })
+        .expect(409);
+      expect(conflict.body.details.currentVersion).toBe(v + 1);
+
+      await http().delete(`/api/v1/resumes/${id}`).set(auth()).expect(204);
+      await http().get(`/api/v1/resumes/${id}`).set(auth()).expect(404);
+      // soft delete frees the name
+      await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({ name: 'My Resume', jsonResume: {} })
+        .expect(201);
+    });
+
+    it('ownership: a second user gets 404 on foreign ids (no existence leak)', async () => {
+      const mine = await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({ name: 'Private', jsonResume: {} })
+        .expect(201);
+      const other = { email: 'crud2@e2e.test', fullName: 'Other', password: 'Engine-4242X' };
+      await http().post('/api/v1/auth/register').send(other).expect(201);
+      const login2 = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: other.email, password: other.password })
+        .expect(200);
+      const b2 = login2.body.accessToken as string;
+      await http()
+        .get(`/api/v1/resumes/${mine.body.id}`)
+        .set({ Authorization: `Bearer ${b2}` })
+        .expect(404);
+      await http()
+        .delete(`/api/v1/resumes/${mine.body.id}`)
+        .set({ Authorization: `Bearer ${b2}` })
+        .expect(404);
+    });
+  });
+
   it('GET /api/v1/health/ready → 503 once mongo stops (readiness flip)', async () => {
     await mongoose.connection.close(); // sever the app's connection
     await mongo.stop();
