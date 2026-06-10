@@ -90,6 +90,13 @@ export class AppConfigService {
     };
   }
 
+  get exports() {
+    return {
+      concurrency: this.get('EXPORT_CONCURRENCY'),
+      chromiumPath: this.get('PUPPETEER_EXECUTABLE_PATH'),
+    };
+  }
+
   get admin() {
     return { statsCacheSeconds: this.get('ADMIN_STATS_CACHE_S') };
   }

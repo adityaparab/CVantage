@@ -14,6 +14,7 @@ import { AllExceptionsFilter, ZodValidationPipe } from './common';
 import { AppConfigModule, AppConfigService } from './config';
 import { DatabaseModule } from './database/database.module';
 import { EventsModule } from './events';
+import { ExportModule } from './export/export.module';
 import { HealthModule } from './health/health.module';
 import { JobsModule } from './jobs';
 import { LifecycleModule } from './lifecycle/lifecycle.module';
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     OAuthModule,
     UsersModule,
     ResumesModule,
+    ExportModule,
     AnalysesModule,
     NotificationsModule,
     SseModule,

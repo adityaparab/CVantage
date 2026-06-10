@@ -188,6 +188,28 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         .expect(422);
     });
 
+
+    it('docx export streams with the right headers (issue #81 / 9.4)', async () => {
+      const res = await http()
+        .get(`/api/v1/resumes/${resumeId}/export?format=docx`)
+        .set(auth())
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on('data', (c: Buffer) => chunks.push(c));
+          r.on('end', () => cb(null, Buffer.concat(chunks)));
+        })
+        .expect(200);
+      expect(res.headers['content-type']).toContain('wordprocessingml');
+      expect(res.headers['content-disposition']).toMatch(/attachment; filename=".+.docx"/);
+      expect((res.body as Buffer).subarray(0, 2).toString()).toBe('PK');
+      await http()
+        .get(`/api/v1/resumes/${'0'.repeat(24)}/export?format=docx`)
+        .set(auth())
+        .expect(404);
+      await http().get(`/api/v1/resumes/${resumeId}/export?format=exe`).set(auth()).expect(400);
+    });
+
     it('suggestion apply/dismiss journey on the live resume (#43)', async () => {
       const created = await http()
         .post('/api/v1/analyses')

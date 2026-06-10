@@ -25,6 +25,8 @@ import { VerificationTokensService } from '../auth/verification-tokens.service';
 import { AppConfigService } from '../config';
 import { User } from '../database/schemas';
 import { ProgressBusService } from '../events';
+import { ExportController } from '../export/export.controller';
+import { ExportService } from '../export/export.service';
 import { HealthModule } from '../health/health.module';
 import { MailService } from '../mail/mail.service';
 import { NotificationsController } from '../notifications/notifications.controller';
@@ -73,6 +75,7 @@ export const DOCS_FAKE_CONFIG = {
     { provide: AdminResumesService, useValue: {} },
     { provide: AdminModelsService, useValue: {} },
     { provide: ProgressBusService, useValue: {} },
+    { provide: ExportService, useValue: {} },
     { provide: UploadService, useValue: {} },
     { provide: VerificationTokensService, useValue: {} },
     { provide: MailService, useValue: {} },
@@ -91,6 +94,7 @@ export const DOCS_FAKE_CONFIG = {
     NotificationsService,
     SseHubService,
     ProgressBusService,
+    ExportService,
     AdminStatsService,
     AdminUsersService,
     AdminResumesService,
@@ -116,6 +120,7 @@ class DocsStubsModule {}
     AnalysesController,
     NotificationsController,
     SseController,
+    ExportController,
     AdminController,
     AdminUsersController,
     AdminResumesController,
