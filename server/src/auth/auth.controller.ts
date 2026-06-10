@@ -26,6 +26,7 @@ import { User, UserStatus } from '../database/schemas';
 
 import { AuthService } from './auth.service';
 import { clearAuthCookies, REFRESH_COOKIE, setAuthCookies } from './cookies';
+import { Public } from './decorators';
 import { AuthUserDto, LoginDto, RefreshDto, RegisterDto, SessionDto } from './dto/auth.dtos';
 import { TokensService } from './tokens.service';
 
@@ -38,6 +39,7 @@ const USER_EXAMPLE = {
 };
 const SESSION_EXAMPLE = { user: USER_EXAMPLE, accessToken: 'eyJhbGciOiJIUzI1NiIs…' };
 
+@Public()
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {

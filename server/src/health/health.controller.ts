@@ -10,6 +10,7 @@ import {
 } from '@nestjs/terminus';
 import { SkipThrottle } from '@nestjs/throttler';
 
+import { Public } from '../auth/decorators';
 import { AppConfigService } from '../config';
 
 const READY_OK_EXAMPLE = {
@@ -37,6 +38,7 @@ const READY_DOWN_EXAMPLE = {
  * Terminus responses contain component status only — no URIs or internals.
  */
 @ApiTags('health')
+@Public()
 @SkipThrottle()
 @Controller('health')
 export class HealthController {

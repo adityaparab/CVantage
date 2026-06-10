@@ -2,7 +2,10 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
+import { ActiveUserGuard } from './auth/active-user.guard';
 import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { RolesGuard } from './auth/roles.guard';
 import { AllExceptionsFilter, ZodValidationPipe } from './common';
 import { AppConfigModule, AppConfigService } from './config';
 import { DatabaseModule } from './database/database.module';
@@ -38,6 +41,9 @@ import { LoggingModule } from './observability/logging.module';
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: ActiveUserGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_PIPE, useClass: ZodValidationPipe },
   ],
