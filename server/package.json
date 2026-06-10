@@ -1,0 +1,11 @@
+{
+  "name": "@cvantage/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CVantage API server (NestJS + MongoDB) — scaffold lands in issue #10",
+  "scripts": {
+    "lint": "echo \"@cvantage/server: lint placeholder — real config in issue #3 (0.2)\"",
+    "test": "echo \"@cvantage/server: test placeholder — harness in issue #19 (1.10)\"",
+    "build": "echo \"@cvantage/server: build placeholder — scaffold in issue #10 (1.1)\""
+  }
+}

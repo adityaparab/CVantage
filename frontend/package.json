@@ -1,0 +1,11 @@
+{
+  "name": "@cvantage/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CVantage web client (React + Vite + Tailwind) — scaffold lands in issue #58",
+  "scripts": {
+    "lint": "echo \"@cvantage/frontend: lint placeholder — real config in issue #3 (0.2)\"",
+    "test": "echo \"@cvantage/frontend: test placeholder — harness in issue #63 (7.6)\"",
+    "build": "echo \"@cvantage/frontend: build placeholder — scaffold in issue #58 (7.1)\""
+  }
+}

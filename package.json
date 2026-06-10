@@ -1,0 +1,27 @@
+{
+  "name": "cvantage",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CVantage — AI-powered resume analysis platform for job seekers",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adityaparab/CVantage.git"
+  },
+  "workspaces": [
+    "server",
+    "frontend",
+    "shared"
+  ],
+  "engines": {
+    "node": ">=22",
+    "yarn": "^1.22.0",
+    "npm": "please-use-yarn"
+  },
+  "scripts": {
+    "lint": "yarn workspaces run lint",
+    "test": "yarn workspaces run test",
+    "build": "yarn workspaces run build",
+    "dev:server": "yarn workspace @cvantage/server dev",
+    "dev:frontend": "yarn workspace @cvantage/frontend dev"
+  }
+}
