@@ -6,6 +6,7 @@ import { AllExceptionsFilter, ZodValidationPipe } from './common';
 import { AppConfigModule, AppConfigService } from './config';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { LifecycleModule } from './lifecycle/lifecycle.module';
 import { LoggingModule } from './observability/logging.module';
 
 /**
@@ -19,6 +20,7 @@ import { LoggingModule } from './observability/logging.module';
     LoggingModule,
     DatabaseModule,
     HealthModule,
+    LifecycleModule,
     ThrottlerModule.forRootAsync({
       inject: [AppConfigService],
       useFactory: (config: AppConfigService) => ({
