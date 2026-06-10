@@ -1,0 +1,40 @@
+name: e2e
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 3 * * *' # nightly
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  playwright:
+    name: playwright (built stack, fake LLM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mongo:
+        image: mongo:7
+        ports: ['27017:27017']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: yarn }
+      - run: npm i -g yarn@1.22.22 --force
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace @cvantage/shared build
+      - run: yarn workspace @cvantage/frontend build
+      - run: yarn workspace @cvantage/server build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+        env:
+          MONGODB_URI: mongodb://localhost:27017/cvantage-e2e
+          CI: 'true'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
