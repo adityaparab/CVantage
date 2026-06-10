@@ -5,7 +5,7 @@ import { Model, Types } from 'mongoose';
 
 import { AuditService } from '../audit/audit.service';
 import { AppException } from '../common';
-import { AuditAction, Resume, ResumeDocument, ResumeSource, User } from '../database/schemas';
+import { AuditAction, Resume, ResumeDocument, ResumeSource, UploadParseStatus, User } from '../database/schemas';
 
 export interface ListQuery {
   page: number;
@@ -91,6 +91,37 @@ export class ResumesService {
     // optimisticConcurrency: a concurrent save still loses with VersionError → 409
     await doc.save();
     return doc;
+  }
+
+  /** Re-enqueue a FAILED upload parse (issue #41 / 4.4). Owner only. */
+  async reparse(userId: Types.ObjectId, id: Types.ObjectId): Promise<ResumeDocument> {
+    const doc = await this.resumes
+      .findOne({ _id: id, userId, deletedAt: null })
+      .exec();
+    if (!doc) throw new NotFoundException('Resume not found');
+    if (doc.uploadParse?.status !== UploadParseStatus.FAILED) {
+      throw new AppException(
+        409,
+        'Conflict',
+        'Only failed parses can be retried',
+        { currentStatus: doc.uploadParse?.status ?? null },
+      );
+    }
+    await this.resumes
+      .updateOne(
+        { _id: id, 'uploadParse.status': UploadParseStatus.FAILED },
+        {
+          $set: { 'uploadParse.status': UploadParseStatus.PENDING, 'uploadParse.retryCount': 0 },
+          $unset: {
+            'uploadParse.error': 1,
+            'uploadParse.claimedBy': 1,
+            'uploadParse.heartbeatAt': 1,
+            'uploadParse.completedAt': 1,
+          },
+        },
+      )
+      .exec();
+    return (await this.resumes.findOne({ _id: id, userId, deletedAt: null }).exec())!;
   }
 
   async softDelete(userId: Types.ObjectId, id: Types.ObjectId): Promise<void> {

@@ -28,6 +28,7 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     }
     mongo = await startMongo();
     process.env.MONGODB_URI = mongo.uri;
+    process.env.LLM_PROVIDER = 'fake'; // D17: deterministic AI fixtures
     process.env.NODE_ENV = 'test';
     process.env.LOG_LEVEL = 'fatal';
     // Import AFTER env so @nestjs/config validate sees the test URI.
@@ -619,6 +620,76 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         .expect(201);
       expect(res.body.uploadParse.status).toBe('failed');
       expect(String(res.body.uploadParse.error)).toMatch(/CORRUPT_FILE|EMPTY_TEXT/);
+    });
+
+
+    it('background parse: fake LLM fills jsonResume and flips status to completed', async () => {
+      const up = await http()
+        .post('/api/v1/resumes/upload')
+        .set(auth())
+        .attach('file', PDF, { filename: 'parse-me.pdf', contentType: 'application/pdf' })
+        .expect(201);
+      const id = up.body.id as string;
+      let detail: Record<string, never> | undefined;
+      for (let i = 0; i < 30; i += 1) {
+        const res = await http().get(`/api/v1/resumes/${id}`).set(auth()).expect(200);
+        if (res.body.uploadParse.status === 'completed') {
+          detail = res.body as Record<string, never>;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      expect(detail).toBeDefined();
+      const body = detail as unknown as {
+        jsonResume: { basics: { name: string }; work: unknown[] };
+        uploadParse: { modelUsed: string };
+      };
+      expect(body.jsonResume.basics.name).toBe('Ada Lovelace'); // fixture, post-prune
+      expect(body.jsonResume.work).toHaveLength(1);
+      expect(body.uploadParse.modelUsed).toBe('fake/fake-fixture');
+    });
+
+    it('reparse: only failed parses; owner only; 202 then terminal again', async () => {
+      // corrupt upload -> extraction failed (deterministic, no originalText)
+      const bad = await http()
+        .post('/api/v1/resumes/upload')
+        .set(auth())
+        .attach('file', Buffer.from('%PDF-1.4 garbage'), {
+          filename: 'will-fail.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+      const badId = bad.body.id as string;
+      expect(bad.body.uploadParse.status).toBe('failed');
+
+      const re = await http().post(`/api/v1/resumes/${badId}/reparse`).set(auth()).expect(202);
+      expect(re.body.uploadParse.status).toBe('pending');
+
+      // no extracted text -> pipeline fails it terminally again with a clear reason
+      let finalStatus = '';
+      for (let i = 0; i < 30; i += 1) {
+        const res = await http().get(`/api/v1/resumes/${badId}`).set(auth()).expect(200);
+        finalStatus = res.body.uploadParse.status as string;
+        if (finalStatus === 'failed') {
+          expect(String(res.body.uploadParse.error)).toMatch(/No extracted text/);
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      expect(finalStatus).toBe('failed');
+
+      // reparse from a non-failed state is a 409
+      const ok = await http()
+        .post('/api/v1/resumes/upload')
+        .set(auth())
+        .attach('file', PDF, { filename: 'fine.pdf', contentType: 'application/pdf' })
+        .expect(201);
+      for (let i = 0; i < 30; i += 1) {
+        const res = await http().get(`/api/v1/resumes/${ok.body.id}`).set(auth()).expect(200);
+        if (res.body.uploadParse.status === 'completed') break;
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      await http().post(`/api/v1/resumes/${ok.body.id}/reparse`).set(auth()).expect(409);
     });
 
     it('declared-mime mismatch and oversize are rejected (422 / 413)', async () => {

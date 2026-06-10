@@ -11,6 +11,7 @@ import { RolesGuard } from './auth/roles.guard';
 import { AllExceptionsFilter, ZodValidationPipe } from './common';
 import { AppConfigModule, AppConfigService } from './config';
 import { DatabaseModule } from './database/database.module';
+import { EventsModule } from './events';
 import { HealthModule } from './health/health.module';
 import { JobsModule } from './jobs';
 import { LifecycleModule } from './lifecycle/lifecycle.module';
@@ -30,6 +31,7 @@ import { UsersModule } from './users/users.module';
     AppConfigModule,
     LoggingModule,
     DatabaseModule,
+    EventsModule,
     MailModule,
     StorageModule,
     AiModule,

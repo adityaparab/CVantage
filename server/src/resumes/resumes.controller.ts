@@ -191,6 +191,35 @@ export class ResumesController {
     return toDetail(doc);
   }
 
+  @Post(':id/reparse')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: 'Retry a failed upload parse',
+    description:
+      'Re-enqueues AI parsing for an uploaded resume whose parse FAILED. ' +
+      'The job is picked up by the background runner within about a second; ' +
+      'poll GET /resumes/{id} (uploadParse.status) or listen on SSE (#48). ' +
+      'Only the owner may retry; only the failed state is retryable.',
+  })
+  @ApiParam({ name: 'id', description: 'Resume identifier', example: '665f1c2ab79e8e3d4c8a9f01' })
+  @ApiOkResponse({
+    description: 'Parse re-enqueued; uploadParse.status is pending again. (202)',
+    schema: {
+      example: {
+        id: '665f1c2ab79e8e3d4c8a9f01',
+        uploadParse: { status: 'pending', retryCount: 0 },
+      },
+    },
+  })
+  @ApiStandardErrors(401, 404, 409)
+  async reparse(
+    @CurrentUser() user: RequestUser,
+    @Param('id', ObjectIdPipe) id: Types.ObjectId,
+  ): Promise<{ id: string; uploadParse: unknown }> {
+    const doc = await this.resumes.reparse(new Types.ObjectId(user.id), id);
+    return { id: String(doc._id), uploadParse: doc.uploadParse };
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
