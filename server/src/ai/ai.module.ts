@@ -5,6 +5,8 @@ import { AiModel, AiModelSchema } from '../database/schemas/ai-model.schema';
 
 import { AiModelsService } from './ai-models.service';
 import { CryptoService } from './crypto.service';
+import { FakeLlmProvider } from './fake-llm.provider';
+import { LlmService } from './llm.service';
 
 /**
  * AI platform foundation (issue #38 / 4.1): key crypto + model registry.
@@ -13,7 +15,7 @@ import { CryptoService } from './crypto.service';
  */
 @Module({
   imports: [MongooseModule.forFeature([{ name: AiModel.name, schema: AiModelSchema }])],
-  providers: [CryptoService, AiModelsService],
-  exports: [CryptoService, AiModelsService],
+  providers: [CryptoService, AiModelsService, FakeLlmProvider, LlmService],
+  exports: [CryptoService, AiModelsService, LlmService],
 })
 export class AiModule {}
