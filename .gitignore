@@ -28,3 +28,8 @@ Thumbs.db
 # git bundles (sync artifacts)
 *.bundle
 .secrets
+
+# playwright
+playwright-report/
+test-results/
+e2e/fixtures/*.pdf
