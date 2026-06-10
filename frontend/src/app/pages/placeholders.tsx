@@ -13,11 +13,6 @@ function Placeholder({ title, note, icon }: { title: string; note: string; icon?
   );
 }
 
-export function ResumeEditorPage() {
-  return (
-    <Placeholder title="Resume editor" note="The full editor lands with #69 (8.5)." icon="📝" />
-  );
-}
 export function NewAnalysisPage() {
   return (
     <Placeholder title="New analysis" note="Analysis creation lands with #72 (8.8)." icon="🧪" />

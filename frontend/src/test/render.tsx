@@ -19,7 +19,13 @@ export function renderWith(
     auth = 'candidate',
     route = '/',
     path = '*',
-  }: { auth?: AuthScenario; route?: string; path?: string } = {},
+    extraRoutes = [],
+  }: {
+    auth?: AuthScenario;
+    route?: string;
+    path?: string;
+    extraRoutes?: Array<{ path: string; element: ReactNode }>;
+  } = {},
 ): RenderResult & { client: QueryClient } {
   server.use(authHandlers[auth]);
   const client = new QueryClient({
@@ -27,6 +33,7 @@ export function renderWith(
   });
   const router = createMemoryRouter(
     [
+      ...extraRoutes,
       {
         path,
         element: (
