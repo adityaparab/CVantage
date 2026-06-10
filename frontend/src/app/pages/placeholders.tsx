@@ -18,11 +18,6 @@ export function ResumeEditorPage() {
     <Placeholder title="Resume editor" note="The full editor lands with #69 (8.5)." icon="📝" />
   );
 }
-export function UploadPage() {
-  return (
-    <Placeholder title="Upload resume" note="The upload flow lands with #68 (8.4)." icon="📤" />
-  );
-}
 export function NewAnalysisPage() {
   return (
     <Placeholder title="New analysis" note="Analysis creation lands with #72 (8.8)." icon="🧪" />

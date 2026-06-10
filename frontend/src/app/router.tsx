@@ -14,7 +14,6 @@ import {
   AnalysesPage,
   NewAnalysisPage,
   ResumeEditorPage,
-  UploadPage,
 } from './pages/placeholders';
 import { QueryProvider } from './query';
 
@@ -24,6 +23,7 @@ import { env } from '@/lib/env';
 
 const Showcase = lazy(() => import('@/features/showcase/Showcase'));
 const LandingPage = lazy(() => import('@/features/marketing/LandingPage'));
+const UploadScreen = lazy(() => import('@/features/upload/UploadScreen'));
 const DashboardScreen = lazy(() => import('@/features/dashboard/DashboardScreen'));
 const LoginScreen = lazy(() => import('@/features/auth/screens/LoginScreen'));
 const RegisterScreen = lazy(() => import('@/features/auth/screens/RegisterScreen'));
@@ -99,8 +99,9 @@ export const router = createBrowserRouter([
           { path: '/analyses', element: <AnalysesPage /> },
           { path: '/analyses/new', element: <NewAnalysisPage /> },
           { path: '/resumes/new', element: <ResumeEditorPage /> },
-          { path: '/resumes/upload', element: <UploadPage /> },
+          { path: '/resumes/upload', element: lazyPage(<UploadScreen />) },
           { path: '/resumes/:id/edit', element: <ResumeEditorPage /> },
+          { path: '/resumes/:id/review', element: <ResumeEditorPage /> },
         ],
       },
       {
