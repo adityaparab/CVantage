@@ -13,15 +13,6 @@ function Placeholder({ title, note, icon }: { title: string; note: string; icon?
   );
 }
 
-export function AnalysesPage() {
-  return (
-    <Placeholder
-      title="Analyses"
-      note="Analysis list + detail land with Phase 8 (#71+)."
-      icon="🧠"
-    />
-  );
-}
 export function AdminDashboardPage() {
   return (
     <Placeholder title="Admin dashboard" note="Admin stats land with Phase 9 (#78)." icon="🛠️" />

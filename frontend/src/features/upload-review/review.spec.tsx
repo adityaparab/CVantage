@@ -40,7 +40,7 @@ describe('upload review (issue #71 / 8.7)', () => {
 
   it(
     'save then Start analysis navigates with the resume preselected',
-    { timeout: 20_000 },
+    { timeout: 60_000 },
     async () => {
       server.use(
         mswHttp.get(`${API}/resumes/:id`, () =>

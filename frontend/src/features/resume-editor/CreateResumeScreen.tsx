@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { FormProvider } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
@@ -30,7 +31,12 @@ export default function CreateResumeScreen() {
   const form = useZodForm<CreateValues>(createSchema as never, {
     defaultValues: { ...EMPTY_FORM, resumeName: '' },
   });
-  useDirtyGuard(form.formState.isDirty && !form.formState.isSubmitSuccessful);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  useDirtyGuard(form.formState.isDirty && savedId === null);
+  // navigate AFTER the guard sees the saved state (state batching vs blocker)
+  useEffect(() => {
+    if (savedId) navigate(`/resumes/${savedId}/edit`, { replace: true });
+  }, [savedId, navigate]);
 
   const create = useMutation({
     mutationFn: (values: CreateValues) =>
@@ -38,7 +44,7 @@ export default function CreateResumeScreen() {
     onSuccess: async (resume) => {
       toast('success', 'Resume saved');
       await queryClient.invalidateQueries({ queryKey: keys.resumes.all() });
-      navigate(`/resumes/${resume.id}/edit`, { replace: true });
+      setSavedId(resume.id);
     },
     onError: (err) => {
       const e = normalizeApiError(err);
