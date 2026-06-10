@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ActiveUserGuard } from './auth/active-user.guard';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { OAuthModule } from './auth/oauth/oauth.module';
 import { RolesGuard } from './auth/roles.guard';
 import { AllExceptionsFilter, ZodValidationPipe } from './common';
 import { AppConfigModule, AppConfigService } from './config';
@@ -25,6 +26,7 @@ import { LoggingModule } from './observability/logging.module';
     DatabaseModule,
     HealthModule,
     AuthModule,
+    OAuthModule,
     LifecycleModule,
     ThrottlerModule.forRootAsync({
       inject: [AppConfigService],
