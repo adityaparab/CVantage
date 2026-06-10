@@ -12,6 +12,7 @@ import { AppConfigModule, AppConfigService } from './config';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { LifecycleModule } from './lifecycle/lifecycle.module';
+import { MailModule } from './mail/mail.module';
 import { LoggingModule } from './observability/logging.module';
 
 /**
@@ -24,6 +25,7 @@ import { LoggingModule } from './observability/logging.module';
     AppConfigModule,
     LoggingModule,
     DatabaseModule,
+    MailModule,
     HealthModule,
     AuthModule,
     OAuthModule,

@@ -9,6 +9,11 @@ import { PasswordHasherService } from './password-hasher.service';
 describe('AuthService (issue #22 / 2.1)', () => {
   const hasher = new PasswordHasherService();
   const audit = { record: jest.fn() };
+  const verification = { issue: jest.fn().mockResolvedValue('VTOK1234567890123456789012') };
+  const mail = {
+    background: jest.fn(),
+    sendEmailVerification: jest.fn().mockResolvedValue(undefined),
+  };
 
   const makeModel = () => ({
     create: jest.fn(),
@@ -41,7 +46,13 @@ describe('AuthService (issue #22 / 2.1)', () => {
       role: 'candidate',
       ...input,
     }));
-    const service = new AuthService(model as never, hasher, audit as never);
+    const service = new AuthService(
+      model as never,
+      hasher,
+      audit as never,
+      verification as never,
+      mail as never,
+    );
 
     const out = await service.register(
       { email: 'ada@example.test', fullName: 'Ada', password: 'Engine-4242' },
@@ -53,6 +64,8 @@ describe('AuthService (issue #22 / 2.1)', () => {
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'user.register', ip: '1.2.3.4' }),
     );
+    expect(verification.issue).toHaveBeenCalledWith('email_verify', expect.anything());
+    expect(mail.background).toHaveBeenCalled();
     expect(JSON.stringify(out)).not.toContain('argon2');
     expect(out.email).toBe('ada@example.test');
   });
@@ -61,7 +74,13 @@ describe('AuthService (issue #22 / 2.1)', () => {
     const doc = await makeUserDoc('Engine-4242');
     const model = makeModel();
     model.findOne.mockReturnValue(found(doc));
-    const service = new AuthService(model as never, hasher, audit as never);
+    const service = new AuthService(
+      model as never,
+      hasher,
+      audit as never,
+      verification as never,
+      mail as never,
+    );
 
     const out = await service.login({ email: 'ADA@example.test', password: 'Engine-4242' });
     expect(out.id).toBe(String(doc._id));
@@ -74,7 +93,13 @@ describe('AuthService (issue #22 / 2.1)', () => {
     const doc = await makeUserDoc('Engine-4242');
     const model = makeModel();
     model.findOne.mockReturnValueOnce(found(doc)).mockReturnValueOnce(found(null));
-    const service = new AuthService(model as never, hasher, audit as never);
+    const service = new AuthService(
+      model as never,
+      hasher,
+      audit as never,
+      verification as never,
+      mail as never,
+    );
 
     const wrongPw = service.login({ email: 'ada@example.test', password: 'Wrong-99999' });
     await expect(wrongPw).rejects.toThrow(UnauthorizedException);
@@ -87,7 +112,13 @@ describe('AuthService (issue #22 / 2.1)', () => {
     const spy = jest.spyOn(hasher, 'verify');
     const model = makeModel();
     model.findOne.mockReturnValue(found(null));
-    const service = new AuthService(model as never, hasher, audit as never);
+    const service = new AuthService(
+      model as never,
+      hasher,
+      audit as never,
+      verification as never,
+      mail as never,
+    );
 
     await expect(
       service.login({ email: 'ghost@example.test', password: 'Whatever-123' }),
@@ -100,7 +131,13 @@ describe('AuthService (issue #22 / 2.1)', () => {
     const doc = await makeUserDoc('Engine-4242', { status: UserStatus.DEACTIVATED });
     const model = makeModel();
     model.findOne.mockReturnValue(found(doc));
-    const service = new AuthService(model as never, hasher, audit as never);
+    const service = new AuthService(
+      model as never,
+      hasher,
+      audit as never,
+      verification as never,
+      mail as never,
+    );
 
     await expect(
       service.login({ email: 'ada@example.test', password: 'Engine-4242' }),

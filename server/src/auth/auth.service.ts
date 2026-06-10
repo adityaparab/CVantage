@@ -3,9 +3,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { AuditService } from '../audit/audit.service';
-import { AuditAction, User, UserDocument, UserStatus } from '../database/schemas';
+import { AuditAction, TokenKind, User, UserDocument, UserStatus } from '../database/schemas';
+import { MailService } from '../mail/mail.service';
 
 import { PasswordHasherService } from './password-hasher.service';
+import { VerificationTokensService } from './verification-tokens.service';
 
 export interface SanitizedUser {
   id: string;
@@ -31,6 +33,8 @@ export class AuthService {
     @InjectModel(User.name) private readonly users: Model<User>,
     private readonly hasher: PasswordHasherService,
     private readonly audit: AuditService,
+    private readonly verification: VerificationTokensService,
+    private readonly mail: MailService,
   ) {}
 
   sanitize(user: UserDocument): SanitizedUser {
@@ -52,7 +56,11 @@ export class AuthService {
       passwordHash,
     });
     await this.audit.record({ action: AuditAction.USER_REGISTER, actorId: user._id, ip });
-    // TODO(#26): trigger verification mail via MailModule.
+    const verifyToken = await this.verification.issue(TokenKind.EMAIL_VERIFY, user._id);
+    this.mail.background(
+      this.mail.sendEmailVerification(user.email, verifyToken),
+      'email verification',
+    );
     return this.sanitize(user);
   }
 

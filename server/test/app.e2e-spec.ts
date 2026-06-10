@@ -6,6 +6,8 @@ import type { App } from 'supertest/types';
 
 import { configureApp } from '../src/app.setup';
 import { setupSwagger } from '../src/docs/swagger.setup';
+import type { ConsoleMailDriver } from '../src/mail/console.driver';
+import { MailService } from '../src/mail/mail.service';
 
 import { mongoAvailable, startMongo, type MongoTestContext } from './mongo-test.util';
 
@@ -180,6 +182,70 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         true,
       );
       await http().post('/api/v1/auth/refresh').set('Cookie', c).send({}).expect(401);
+    });
+  });
+
+  describe('auth: verification + password reset (issue #26 / 2.5)', () => {
+    const creds = { email: 'mailer@e2e.test', fullName: 'Mailer', password: 'Engine-4242X' };
+    const inbox = (): { to: string; text: string }[] =>
+      (app.get(MailService).driver as ConsoleMailDriver).sent;
+    const tokenFrom = (text: string, kind: string): string =>
+      new RegExp(kind + '[?]token=([A-Za-z0-9_-]+)').exec(text)![1]!;
+
+    it('register sends a verification mail; verify flips the flag; token is single-use', async () => {
+      await http().post('/api/v1/auth/register').send(creds).expect(201);
+      const mail = inbox().find((m) => m.to === creds.email)!;
+      expect(mail).toBeDefined();
+      const token = tokenFrom(mail.text, 'verify-email');
+      await http().post('/api/v1/auth/verify-email').send({ token }).expect(200);
+      const user = await mongoose.connection
+        .db!.collection('users')
+        .findOne({ email: creds.email });
+      expect(user!.emailVerified).toBe(true);
+      await http().post('/api/v1/auth/verify-email').send({ token }).expect(400);
+    });
+
+    it('forgot-password is uniform 202; reset rotates the hash and revokes sessions', async () => {
+      const ghost = await http()
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'ghost@e2e.test' })
+        .expect(202);
+      const real = await http()
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: creds.email })
+        .expect(202);
+      expect(ghost.body).toEqual(real.body);
+
+      const login = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      const cookies = ([] as string[]).concat((login.headers['set-cookie'] as string[]) ?? []);
+      const cookieHeader = cookies.map((c) => c.split(';')[0]).join('; ');
+
+      const mail = inbox()
+        .filter((m) => m.to === creds.email)
+        .pop()!;
+      const token = tokenFrom(mail.text, 'reset-password');
+      await http()
+        .post('/api/v1/auth/reset-password')
+        .send({ token, password: 'Fresh-Engine-77' })
+        .expect(200);
+
+      await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(401);
+      await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: 'Fresh-Engine-77' })
+        .expect(200);
+      // all pre-reset refresh sessions are revoked
+      await http().post('/api/v1/auth/refresh').set('Cookie', cookieHeader).send({}).expect(401);
+      const audits = await mongoose.connection
+        .db!.collection('auditlogs')
+        .countDocuments({ action: 'user.password_reset' });
+      expect(audits).toBe(1);
     });
   });
 
