@@ -13,7 +13,6 @@ import {
   AdminUsersPage,
   AnalysesPage,
   DashboardPage,
-  LandingPage,
   LoginPage,
   RegisterPage,
 } from './pages/placeholders';
@@ -24,6 +23,7 @@ import { AuthProvider } from '@/features/auth/auth-context';
 import { env } from '@/lib/env';
 
 const Showcase = lazy(() => import('@/features/showcase/Showcase'));
+const LandingPage = lazy(() => import('@/features/marketing/LandingPage'));
 
 function PageFallback() {
   return (
@@ -56,7 +56,7 @@ export const router = createBrowserRouter([
       {
         element: <MarketingLayout />,
         children: [
-          { path: '/', element: <LandingPage /> },
+          { path: '/', element: lazyPage(<LandingPage />) },
           {
             path: '/login',
             element: (
