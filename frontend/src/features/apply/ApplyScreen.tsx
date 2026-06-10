@@ -7,7 +7,8 @@ import { resumesApi } from '@/api/endpoints/resumes';
 import { normalizeApiError } from '@/api/errors';
 import { keys } from '@/api/keys';
 import type { Types } from '@/api/types';
-import { Badge, Button, Skeleton, Tooltip, useToast } from '@/components/ui';
+import { Badge, Button, Skeleton, useToast } from '@/components/ui';
+import { DownloadMenu } from '@/features/export/DownloadMenu';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/cn';
 
@@ -163,13 +164,9 @@ export default function ApplyScreen() {
           <Link to={`/analyses/${id}`}>
             <Button variant="ghost">Back to results</Button>
           </Link>
-          <Tooltip label="Exports unlock once the export service ships (#9.4)">
-            <span>
-              <Button disabled aria-disabled="true">
-                Download ▾
-              </Button>
-            </span>
-          </Tooltip>
+          {resume.data ? (
+            <DownloadMenu resumeId={resume.data.id} resumeName={resume.data.name} />
+          ) : null}
         </div>
       </div>
 

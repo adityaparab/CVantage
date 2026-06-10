@@ -80,7 +80,7 @@ describe('apply flow (issue #75 / 8.11)', () => {
     });
   });
 
-  it('409 conflict toasts and refreshes; download stays disabled with tooltip', async () => {
+  it('409 conflict toasts and refreshes; download menu is live', async () => {
     server.use(
       mswHttp.post(`${API}/analyses/:id/suggestions/:sid/apply`, () =>
         HttpResponse.json(
@@ -94,9 +94,7 @@ describe('apply flow (issue #75 / 8.11)', () => {
     await screen.findByText('Mirror the job title');
     await user.click(screen.getByRole('button', { name: /Apply: Mirror the job title/ }));
     expect(await screen.findByText(/changed elsewhere/i)).toBeInTheDocument();
-    const download = screen.getByRole('button', { name: /Download/ });
-    expect(download).toBeDisabled();
-    expect(screen.getByRole('tooltip', { hidden: true })).toHaveTextContent(/export service/i);
+    expect(screen.getByRole('button', { name: /Download/ })).toBeEnabled(); // live since #82
   });
 
   it('dismiss persists via refetch; dismissed cards drop their Dismiss button', async () => {

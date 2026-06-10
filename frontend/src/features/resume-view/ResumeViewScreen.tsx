@@ -11,6 +11,7 @@ import { normalizeApiError } from '@/api/errors';
 import { keys } from '@/api/keys';
 import type { Types } from '@/api/types';
 import { Badge, Button, Skeleton, statusTone, useToast } from '@/components/ui';
+import { DownloadMenu } from '@/features/export/DownloadMenu';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
@@ -122,6 +123,7 @@ export default function ResumeViewScreen() {
           <Link to="/dashboard">
             <Button variant="ghost">Back</Button>
           </Link>
+          <DownloadMenu resumeId={doc.id} resumeName={doc.name} />
           <Button onClick={() => navigate(`/resumes/${doc.id}/analyze`)}>Analyze resume</Button>
         </div>
       </div>

@@ -34,3 +34,20 @@ The create-flow dirty guard raced React state batching: navigating in the
 mutation callback fired the "discard changes?" dialog after a successful
 save. Fixed by navigating from an effect keyed on the saved id - the journey
 spec now locks the regression.
+
+## Phase 9 addendum — admin + export (issue #82 / 9.5)
+
+| PROMPT.md requirement | Test(s) |
+|---|---|
+| Admin top navigation + dashboard counts | `admin-dashboard.spec` (card/endpoint parity, guard matrix) |
+| User list: search + exact columns | `admin-users.spec` (debounced server params, column sweep) |
+| User details: edit, password reset, deactivate | inline-edit 409, single-shot temp password w/ copy, status flips |
+| Admin sees resume LIST never content | metadata table + DOM content-shape assertion |
+| Delete user resume (with analyses) | cascade-warning confirm wired to #54 |
+| Settings: models with masked keys, add with key | `admin-models.spec` (mask-only DOM, inline invalid-key, rotate, delete guard) |
+| Download dropdown (PDF/DOCX) | `download.spec` both formats w/ server filenames + 503/500 toasts; server golden checks in `export.spec` |
+
+Manual sign-off note (#81 AC): golden tests verify the DOCX package
+content and the escaped print HTML; opening the files in Word/LibreOffice
+and a PDF reader happens on the deployed build (chromium ships in the
+Docker image, #93) - record the check in epic #77 when closing it.
