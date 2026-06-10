@@ -15,6 +15,7 @@ import { LifecycleModule } from './lifecycle/lifecycle.module';
 import { MailModule } from './mail/mail.module';
 import { LoggingModule } from './observability/logging.module';
 import { ResumesModule } from './resumes/resumes.module';
+import { StorageModule } from './storage/storage.module';
 import { UsersModule } from './users/users.module';
 
 /**
@@ -28,6 +29,7 @@ import { UsersModule } from './users/users.module';
     LoggingModule,
     DatabaseModule,
     MailModule,
+    StorageModule,
     HealthModule,
     AuthModule,
     OAuthModule,
