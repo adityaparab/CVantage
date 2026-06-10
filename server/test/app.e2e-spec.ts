@@ -587,6 +587,82 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         expect(actions).toContain(expected);
       }
     });
+
+    it('resume oversight: metadata-only listing, content denial, cascade delete (#54)', async () => {
+      // the analyst user from the analysis suite has resumes + analyses + bell rows
+      const target = await mongoose.connection
+        .db!.collection('users')
+        .findOne({ email: 'analyst@e2e.test' });
+      const targetId = String(target!._id);
+
+      const listing = await http()
+        .get(`/api/v1/admin/users/${targetId}/resumes`)
+        .set(adminAuth())
+        .expect(200);
+      expect(listing.body.total).toBeGreaterThan(0);
+      for (const row of listing.body.items as Array<Record<string, unknown>>) {
+        expect(Object.keys(row).sort()).toEqual(
+          ['analysisCount', 'analysisStatus', 'createdAt', 'id', 'name', 'source'].sort(),
+        );
+        expect(JSON.stringify(row)).not.toMatch(/jsonResume|originalText|overallScore/);
+      }
+
+      // structural denial: admin hitting candidate content routes for foreign data
+      const someResume = (listing.body.items as Array<{ id: string }>)[0]!.id;
+      await http().get(`/api/v1/resumes/${someResume}`).set(adminAuth()).expect(404);
+
+      // cascade: pick a resume with analyses
+      const resumeDoc = await mongoose.connection
+        .db!.collection('resumes')
+        .findOne({ userId: target!._id, analysisCount: { $gt: 0 }, deletedAt: null });
+      const victimResume = String(resumeDoc!._id);
+      const ownerBefore = await mongoose.connection
+        .db!.collection('users')
+        .findOne({ _id: target!._id });
+
+      const cascade = await http()
+        .delete(`/api/v1/admin/resumes/${victimResume}`)
+        .set(adminAuth())
+        .expect(200);
+      expect(cascade.body.resumeDeleted).toBe(true);
+      expect(cascade.body.analysesDeleted).toBeGreaterThan(0);
+
+      // analyses soft-deleted + hidden from the candidate API
+      const liveAnalyses = await mongoose.connection
+        .db!.collection('analyses')
+        .countDocuments({ resumeId: resumeDoc!._id, deletedAt: null });
+      expect(liveAnalyses).toBe(0);
+      // counters corrected
+      const ownerAfter = await mongoose.connection
+        .db!.collection('users')
+        .findOne({ _id: target!._id });
+      expect(ownerAfter!.resumeCount).toBe((ownerBefore!.resumeCount as number) - 1);
+      expect(ownerAfter!.analysisCount).toBe(
+        (ownerBefore!.analysisCount as number) - (cascade.body.analysesDeleted as number),
+      );
+
+      // idempotent re-run: nothing double-decrements
+      const rerun = await http()
+        .delete(`/api/v1/admin/resumes/${victimResume}`)
+        .set(adminAuth())
+        .expect(200);
+      expect(rerun.body).toEqual({
+        resumeDeleted: false,
+        analysesDeleted: 0,
+        notificationsCleared: 0,
+      });
+      const ownerFinal = await mongoose.connection
+        .db!.collection('users')
+        .findOne({ _id: target!._id });
+      expect(ownerFinal!.resumeCount).toBe(ownerAfter!.resumeCount);
+
+      // audit row: ids + counts only
+      const audit = await mongoose.connection
+        .db!.collection('auditlogs')
+        .findOne({ action: 'admin.resume.delete' });
+      expect(audit).toBeTruthy();
+      expect(JSON.stringify(audit!.meta)).not.toMatch(/jsonResume|originalText|basics/);
+    });
   });
 
   describe('phase-3 hardening sweep (issue #37 / 3.7)', () => {

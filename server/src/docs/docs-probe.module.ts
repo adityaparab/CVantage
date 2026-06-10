@@ -2,6 +2,8 @@ import { Global, Module } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { LoggerModule } from 'nestjs-pino';
 
+import { AdminResumesController } from '../admin/admin-resumes.controller';
+import { AdminResumesService } from '../admin/admin-resumes.service';
 import { AdminStatsService } from '../admin/admin-stats.service';
 import { AdminUsersController } from '../admin/admin-users.controller';
 import { AdminUsersService } from '../admin/admin-users.service';
@@ -66,6 +68,7 @@ export const DOCS_FAKE_CONFIG = {
     { provide: SseHubService, useValue: {} },
     { provide: AdminStatsService, useValue: {} },
     { provide: AdminUsersService, useValue: {} },
+    { provide: AdminResumesService, useValue: {} },
     { provide: ProgressBusService, useValue: {} },
     { provide: UploadService, useValue: {} },
     { provide: VerificationTokensService, useValue: {} },
@@ -87,6 +90,7 @@ export const DOCS_FAKE_CONFIG = {
     ProgressBusService,
     AdminStatsService,
     AdminUsersService,
+    AdminResumesService,
     UploadService,
     VerificationTokensService,
     MailService,
@@ -110,6 +114,7 @@ class DocsStubsModule {}
     SseController,
     AdminController,
     AdminUsersController,
+    AdminResumesController,
   ],
 })
 export class DocsProbeModule {}

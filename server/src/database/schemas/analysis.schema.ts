@@ -105,6 +105,10 @@ export class Analysis {
   @Prop({ trim: true }) claimedBy?: string;
   @Prop({ type: Date }) heartbeatAt?: Date;
 
+  /* Soft delete (admin cascade, issue #54 / 6.3) */
+  @Prop({ type: Date, default: null }) deletedAt?: Date | null;
+  @Prop({ type: Types.ObjectId, ref: 'User' }) deletedBy?: Types.ObjectId;
+
   @Prop({ default: 1 }) schemaVersion!: number;
 }
 export type AnalysisDocument = HydratedDocument<Analysis>;

@@ -85,7 +85,7 @@ export class AnalysesService {
   }
 
   async getById(userId: Types.ObjectId, id: Types.ObjectId): Promise<AnalysisDocument> {
-    const doc = await this.analyses.findOne({ _id: id, userId }).exec();
+    const doc = await this.analyses.findOne({ _id: id, userId, deletedAt: null }).exec();
     if (!doc) throw new NotFoundException('Analysis not found');
     return doc;
   }
@@ -94,7 +94,7 @@ export class AnalysesService {
     userId: Types.ObjectId,
     q: { page: number; limit: number; resumeId?: Types.ObjectId; status?: AnalysisStatus },
   ): Promise<{ items: AnalysisDocument[]; total: number }> {
-    const filter: Record<string, unknown> = { userId };
+    const filter: Record<string, unknown> = { userId, deletedAt: null };
     if (q.resumeId) filter.resumeId = q.resumeId;
     if (q.status) filter.status = q.status;
     const [items, total] = await Promise.all([
