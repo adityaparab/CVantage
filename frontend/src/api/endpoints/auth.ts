@@ -10,6 +10,7 @@ export const authApi = {
   logout: () => http.post('/auth/logout').then(() => undefined),
   forgotPassword: (email: string) =>
     http.post('/auth/forgot-password', { email }).then(() => undefined),
+  verifyEmail: (token: string) => http.post('/auth/verify-email', { token }).then(() => undefined),
   resetPassword: (token: string, password: string) =>
     http.post('/auth/reset-password', { token, password }).then(() => undefined),
 };

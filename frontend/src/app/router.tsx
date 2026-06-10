@@ -13,8 +13,6 @@ import {
   AdminUsersPage,
   AnalysesPage,
   DashboardPage,
-  LoginPage,
-  RegisterPage,
 } from './pages/placeholders';
 import { QueryProvider } from './query';
 
@@ -24,6 +22,23 @@ import { env } from '@/lib/env';
 
 const Showcase = lazy(() => import('@/features/showcase/Showcase'));
 const LandingPage = lazy(() => import('@/features/marketing/LandingPage'));
+const LoginScreen = lazy(() => import('@/features/auth/screens/LoginScreen'));
+const RegisterScreen = lazy(() => import('@/features/auth/screens/RegisterScreen'));
+const PasswordScreens = lazy(() =>
+  import('@/features/auth/screens/PasswordScreens').then((m) => ({
+    default: m.ForgotPasswordScreen,
+  })),
+);
+const ResetScreen = lazy(() =>
+  import('@/features/auth/screens/PasswordScreens').then((m) => ({
+    default: m.ResetPasswordScreen,
+  })),
+);
+const VerifyScreen = lazy(() =>
+  import('@/features/auth/screens/PasswordScreens').then((m) => ({
+    default: m.VerifyEmailScreen,
+  })),
+);
 
 function PageFallback() {
   return (
@@ -59,19 +74,14 @@ export const router = createBrowserRouter([
           { path: '/', element: lazyPage(<LandingPage />) },
           {
             path: '/login',
-            element: (
-              <RedirectIfAuthed>
-                <LoginPage />
-              </RedirectIfAuthed>
-            ),
+            element: <RedirectIfAuthed>{lazyPage(<LoginScreen />)}</RedirectIfAuthed>,
           },
+          { path: '/forgot-password', element: lazyPage(<PasswordScreens />) },
+          { path: '/reset-password', element: lazyPage(<ResetScreen />) },
+          { path: '/verify-email', element: lazyPage(<VerifyScreen />) },
           {
             path: '/register',
-            element: (
-              <RedirectIfAuthed>
-                <RegisterPage />
-              </RedirectIfAuthed>
-            ),
+            element: <RedirectIfAuthed>{lazyPage(<RegisterScreen />)}</RedirectIfAuthed>,
           },
         ],
       },

@@ -13,20 +13,6 @@ function Placeholder({ title, note, icon }: { title: string; note: string; icon?
   );
 }
 
-export function LoginPage() {
-  return (
-    <Placeholder title="Sign in" note="The full auth screens land with Phase 8 (#65)." icon="🔐" />
-  );
-}
-export function RegisterPage() {
-  return (
-    <Placeholder
-      title="Create account"
-      note="The full auth screens land with Phase 8 (#65)."
-      icon="✨"
-    />
-  );
-}
 export function DashboardPage() {
   return (
     <Placeholder title="Dashboard" note="Resume table + stats land with Phase 8 (#66)." icon="📊" />
