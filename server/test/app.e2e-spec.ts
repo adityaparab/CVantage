@@ -663,6 +663,95 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
       expect(audit).toBeTruthy();
       expect(JSON.stringify(audit!.meta)).not.toMatch(/jsonResume|originalText|basics/);
     });
+
+    it('model management: validate-first add, masked everywhere, rotate, guard, denial (#55)', async () => {
+      // candidate denial matrix
+      const candLogin = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: 'pleb@e2e.test', password: 'Engine-9512X' })
+        .expect(200);
+      const candAuth = { Authorization: `Bearer ${candLogin.body.accessToken}` };
+      await http().get('/api/v1/admin/models').set(candAuth).expect(403);
+      await http().post('/api/v1/admin/models').set(candAuth).send({}).expect(403);
+
+      // invalid key -> 422, nothing persisted
+      await http()
+        .post('/api/v1/admin/models')
+        .set(adminAuth())
+        .send({
+          provider: 'openai',
+          modelName: 'gpt-4o',
+          apiKey: 'sk-!!BAD_KEY!!-0000',
+          usages: ['analysis'],
+        })
+        .expect(422);
+      const empty = await http().get('/api/v1/admin/models').set(adminAuth()).expect(200);
+      expect(empty.body).toHaveLength(0);
+
+      // valid add -> masked response + masked list; raw key nowhere
+      const created = await http()
+        .post('/api/v1/admin/models')
+        .set(adminAuth())
+        .send({
+          provider: 'openai',
+          modelName: 'gpt-4o',
+          apiKey: 'sk-live-e2e-key-3kF9',
+          usages: ['analysis', 'fallback'],
+        })
+        .expect(201);
+      expect(created.body.apiKeyMasked).toBe('••••3kF9');
+      expect(JSON.stringify(created.body)).not.toContain('sk-live-e2e-key');
+      const modelId = created.body.id as string;
+
+      // duplicate -> 409
+      await http()
+        .post('/api/v1/admin/models')
+        .set(adminAuth())
+        .send({
+          provider: 'openai',
+          modelName: 'GPT-4O',
+          apiKey: 'sk-live-other-1111',
+          usages: ['analysis'],
+        })
+        .expect(409);
+
+      // rotate -> new mask; raw keys never serialized; mongo stores ciphertext only
+      const rotated = await http()
+        .post(`/api/v1/admin/models/${modelId}/rotate-key`)
+        .set(adminAuth())
+        .send({ apiKey: 'sk-live-rotated-ZZ77' })
+        .expect(201);
+      expect(rotated.body.apiKeyMasked).toBe('••••ZZ77');
+      const stored = await mongoose.connection
+        .db!.collection('aimodels')
+        .findOne({ _id: new mongoose.Types.ObjectId(modelId) });
+      expect(String(stored!.apiKeyEncrypted)).not.toContain('sk-live-rotated');
+      expect(String(stored!.apiKeyEncrypted).split('.')).toHaveLength(3); // iv.tag.data
+
+      // delete guard: only active model, no env fallback -> 409 listing usages
+      const guard = await http()
+        .delete(`/api/v1/admin/models/${modelId}`)
+        .set(adminAuth())
+        .expect(409);
+      expect(guard.body.details.orphanedUsages).toContain('analysis');
+      // disable, then delete is fine
+      await http()
+        .patch(`/api/v1/admin/models/${modelId}`)
+        .set(adminAuth())
+        .send({ status: 'disabled' })
+        .expect(200);
+      await http().delete(`/api/v1/admin/models/${modelId}`).set(adminAuth()).expect(204);
+
+      // audits exist, none carry a raw key
+      const modelAudits = await mongoose.connection
+        .db!.collection('auditlogs')
+        .find({
+          action: { $in: ['admin.model.add', 'admin.model.remove', 'admin.model.key_rotate'] },
+        })
+        .toArray();
+      expect(modelAudits.length).toBeGreaterThanOrEqual(3);
+      expect(JSON.stringify(modelAudits)).not.toMatch(/sk-live/);
+    });
   });
 
   describe('phase-3 hardening sweep (issue #37 / 3.7)', () => {
