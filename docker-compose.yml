@@ -1,0 +1,32 @@
+# CVantage — local infrastructure.
+#
+# Profiles:
+#   db    → MongoDB only (for non-Docker local dev: `yarn dev:server` + `yarn dev:frontend`)
+#   full  → app + MongoDB (arrives with issue #94 / 11.2)
+#
+# Usage:
+#   docker compose --profile db up -d
+#   docker compose --profile db down        # data survives (named volume)
+#   docker compose --profile db down -v     # reset data
+
+name: cvantage
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: cvantage-mongo
+    profiles: ['db', 'full']
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  mongo-data:
