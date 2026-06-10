@@ -135,6 +135,17 @@ export class TokensService {
     return res.deletedCount ?? 0;
   }
 
+  /** Revokes every refresh session EXCEPT the presented one (password change). */
+  async revokeOthersForUser(userId: Types.ObjectId | string, keepRaw?: string): Promise<number> {
+    const filter: Record<string, unknown> = {
+      userId: new Types.ObjectId(userId),
+      kind: TokenKind.REFRESH,
+    };
+    if (keepRaw) filter.tokenHash = { $ne: sha256(keepRaw) };
+    const res = await this.authTokens.deleteMany(filter).exec();
+    return res.deletedCount ?? 0;
+  }
+
   /** Logout: consume the presented refresh token (no error if already gone). */
   async discardRefresh(rawToken: string | undefined): Promise<void> {
     if (!rawToken) return;

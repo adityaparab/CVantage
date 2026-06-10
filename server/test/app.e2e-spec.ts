@@ -249,6 +249,66 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     });
   });
 
+  describe('users self-service (issue #27 / 2.6)', () => {
+    const creds = { email: 'self@e2e.test', fullName: 'Selfie', password: 'Engine-4242X' };
+    const session = async () => {
+      const res = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      const cookies = ([] as string[]).concat((res.headers['set-cookie'] as string[]) ?? []);
+      return {
+        bearer: res.body.accessToken as string,
+        cookieHeader: cookies.map((c) => c.split(';')[0]).join('; '),
+      };
+    };
+
+    it('GET/PATCH /users/me round-trips profile changes (auth required)', async () => {
+      await http().post('/api/v1/auth/register').send(creds).expect(201);
+      await http().get('/api/v1/users/me').expect(401);
+      const { bearer } = await session();
+      const me = await http()
+        .get('/api/v1/users/me')
+        .set('Authorization', `Bearer ${bearer}`)
+        .expect(200);
+      expect(me.body).toMatchObject({ email: creds.email, providers: [], resumeCount: 0 });
+      const patched = await http()
+        .patch('/api/v1/users/me')
+        .set('Authorization', `Bearer ${bearer}`)
+        .send({ fullName: 'Self Improved' })
+        .expect(200);
+      expect(patched.body.fullName).toBe('Self Improved');
+    });
+
+    it('password change keeps the current session and revokes the other', async () => {
+      const a = await session();
+      const b = await session();
+      const res = await http()
+        .post('/api/v1/users/me/password')
+        .set('Authorization', `Bearer ${a.bearer}`)
+        .set('Cookie', a.cookieHeader)
+        .send({ currentPassword: creds.password, newPassword: 'Twice-Engine-88' })
+        .expect(200);
+      expect(res.body.revokedSessions).toBeGreaterThanOrEqual(1);
+      await http().post('/api/v1/auth/refresh').set('Cookie', a.cookieHeader).send({}).expect(200);
+      await http().post('/api/v1/auth/refresh').set('Cookie', b.cookieHeader).send({}).expect(401);
+      creds.password = 'Twice-Engine-88';
+      await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+    });
+
+    it('wrong current password → 403; oauth-only guidance is a 409 (unit-covered)', async () => {
+      const { bearer } = await session();
+      await http()
+        .post('/api/v1/users/me/password')
+        .set('Authorization', `Bearer ${bearer}`)
+        .send({ currentPassword: 'Nope-12345X', newPassword: 'Other-Engine-99' })
+        .expect(403);
+    });
+  });
+
   it('GET /api/v1/health/ready → 503 once mongo stops (readiness flip)', async () => {
     await mongoose.connection.close(); // sever the app's connection
     await mongo.stop();

@@ -14,6 +14,7 @@ import { HealthModule } from './health/health.module';
 import { LifecycleModule } from './lifecycle/lifecycle.module';
 import { MailModule } from './mail/mail.module';
 import { LoggingModule } from './observability/logging.module';
+import { UsersModule } from './users/users.module';
 
 /**
  * Application root. Feature modules are registered here as they land:
@@ -29,6 +30,7 @@ import { LoggingModule } from './observability/logging.module';
     HealthModule,
     AuthModule,
     OAuthModule,
+    UsersModule,
     LifecycleModule,
     ThrottlerModule.forRootAsync({
       inject: [AppConfigService],

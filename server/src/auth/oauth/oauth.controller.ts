@@ -11,7 +11,7 @@ import {
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 
 import { ApiStandardErrors } from '../../common/docs/api-standard-errors.decorator';
@@ -64,6 +64,13 @@ export class OAuthController {
       'not enabled. CSRF protection via state+nonce bound to a signed, httpOnly, ' +
       '10-minute cookie.',
   })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirect to the provider consent screen',
+    headers: {
+      Location: { description: 'Provider authorization URL', schema: { type: 'string' } },
+    },
+  })
   @ApiStandardErrors(HttpStatus.NOT_FOUND)
   start(@Param('provider') provider: string, @Req() req: Request, @Res() res: Response): void {
     const adapter = this.oauth.adapter(provider);
@@ -81,7 +88,20 @@ export class OAuthController {
   }
 
   @Get('oauth/:provider/callback')
-  @ApiExcludeEndpoint() // provider-facing hop, not for API consumers
+  @ApiOperation({
+    summary: 'OAuth provider callback',
+    description:
+      'Provider-facing hop: validates state+nonce, exchanges the code, resolves ' +
+      'the account, sets session cookies and redirects to the SPA with ' +
+      'status=ok or status=error&reason=…. Browsers land here via the provider — ' +
+      'API clients never call it directly.',
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirect back to the SPA (/auth/callback) with a status query',
+    headers: { Location: { description: 'SPA callback URL', schema: { type: 'string' } } },
+  })
+  @ApiStandardErrors(HttpStatus.NOT_FOUND)
   async callback(
     @Param('provider') provider: string,
     @Query('code') code: string | undefined,

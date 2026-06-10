@@ -1,30 +1,21 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { MongooseHealthIndicator } from '@nestjs/terminus';
 import { Test } from '@nestjs/testing';
-import { LoggerModule } from 'nestjs-pino';
 
 import { configureApp } from '../app.setup';
-import { AppConfigModule } from '../config';
+import { DocsProbeModule } from '../docs/docs-probe.module';
 import { buildOpenApiDocument } from '../docs/swagger.setup';
-import { HealthModule } from '../health/health.module';
 
 /**
  * Emits openapi.json without a database (issue #18 / 1.9; CI artifact).
- * Controller modules mirror AppModule's HTTP surface; DB-backed providers
- * are stubbed — document generation never touches Mongo.
+ * Uses the same DB-free controller assembly the docs contract test enforces.
  * Usage: node dist/scripts/export-openapi.js [outfile]
  */
-@Module({
-  imports: [AppConfigModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule],
-})
-class OpenApiExportModule {}
-
 async function main(): Promise<void> {
-  const ref = await Test.createTestingModule({ imports: [OpenApiExportModule] })
+  const ref = await Test.createTestingModule({ imports: [DocsProbeModule] })
     .overrideProvider(MongooseHealthIndicator)
     .useValue({ pingCheck: () => Promise.resolve({ mongodb: { status: 'up' } }) })
     .compile();

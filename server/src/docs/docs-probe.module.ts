@@ -1,0 +1,69 @@
+import { Global, Module } from '@nestjs/common';
+import { getModelToken } from '@nestjs/mongoose';
+import { LoggerModule } from 'nestjs-pino';
+
+import { AuditService } from '../audit/audit.service';
+import { AccountController } from '../auth/account.controller';
+import { AuthController } from '../auth/auth.controller';
+import { AuthService } from '../auth/auth.service';
+import { OAuthController } from '../auth/oauth/oauth.controller';
+import { OAuthService } from '../auth/oauth/oauth.service';
+import { PasswordHasherService } from '../auth/password-hasher.service';
+import { TokensService } from '../auth/tokens.service';
+import { VerificationTokensService } from '../auth/verification-tokens.service';
+import { AppConfigService } from '../config';
+import { User } from '../database/schemas';
+import { HealthModule } from '../health/health.module';
+import { MailService } from '../mail/mail.service';
+import { UsersController } from '../users/users.controller';
+
+/**
+ * DB-free assembly of every HTTP controller for documentation purposes
+ * (issue #18 / 1.9). MUST list each controller mounted in AppModule —
+ * docs.spec's route-coverage test then enforces the documentation contract
+ * on the full surface. Add new controllers HERE when adding them to the app.
+ */
+export const DOCS_FAKE_CONFIG = {
+  core: {
+    isProd: false,
+    swaggerEnabled: true,
+    corsOrigins: [],
+    logLevel: 'silent',
+    appBaseUrl: 'http://docs.local',
+  },
+  auth: { cookieSecret: 'docs-probe-cookie-secret-docs-probe-cook' },
+  oauth: { callbackBaseUrl: 'http://docs.local' },
+};
+
+@Global()
+@Module({
+  providers: [
+    { provide: AppConfigService, useValue: DOCS_FAKE_CONFIG },
+    { provide: AuthService, useValue: {} },
+    { provide: OAuthService, useValue: { enabledProviders: () => ({}) } },
+    { provide: TokensService, useValue: {} },
+    { provide: PasswordHasherService, useValue: {} },
+    { provide: VerificationTokensService, useValue: {} },
+    { provide: MailService, useValue: {} },
+    { provide: AuditService, useValue: {} },
+    { provide: getModelToken(User.name), useValue: {} },
+  ],
+  exports: [
+    AppConfigService,
+    AuthService,
+    OAuthService,
+    TokensService,
+    PasswordHasherService,
+    VerificationTokensService,
+    MailService,
+    AuditService,
+    getModelToken(User.name),
+  ],
+})
+class DocsStubsModule {}
+
+@Module({
+  imports: [DocsStubsModule, LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), HealthModule],
+  controllers: [AuthController, AccountController, OAuthController, UsersController],
+})
+export class DocsProbeModule {}

@@ -1,15 +1,13 @@
-import { Global, Module } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { MongooseHealthIndicator } from '@nestjs/terminus';
 import { Test } from '@nestjs/testing';
-import { LoggerModule } from 'nestjs-pino';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 
 import { configureApp } from '../app.setup';
 import { AppConfigService } from '../config';
-import { HealthModule } from '../health/health.module';
 
+import { DocsProbeModule, DOCS_FAKE_CONFIG } from './docs-probe.module';
 import { setupSwagger } from './swagger.setup';
 
 /**
@@ -19,35 +17,6 @@ import { setupSwagger } from './swagger.setup';
  * one documented success response. New controllers join AppModule → they are
  * automatically held to the contract here.
  */
-const fakeConfig = {
-  core: {
-    isProd: false,
-    swaggerEnabled: true,
-    corsOrigins: [],
-    logLevel: 'silent',
-  },
-  auth: { cookieSecret: 'docs-spec-cookie-secret-docs-spec-cookie' },
-};
-
-// Global fake config so module-scoped controllers (HealthModule) resolve it,
-// mirroring the real @Global AppConfigModule.
-@Global()
-@Module({
-  providers: [{ provide: AppConfigService, useValue: fakeConfig }],
-  exports: [AppConfigService],
-})
-class FakeConfigModule {}
-
-// Controller modules mounted in AppModule (DB-backed providers stubbed).
-@Module({
-  imports: [
-    FakeConfigModule,
-    LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }),
-    HealthModule,
-  ],
-})
-class DocsProbeModule {}
-
 describe('OpenAPI documentation contract (issue #18 / 1.9)', () => {
   let app: NestExpressApplication;
   let document: Record<string, unknown>;
@@ -99,7 +68,9 @@ describe('OpenAPI documentation contract (issue #18 / 1.9)', () => {
       .filter((p) => !p.startsWith('/api/docs'))
       .filter((p) => !p.includes('*')); // Nest's global-prefix catch-all 404 handler
     const documented = Object.keys(document.paths as object);
-    for (const route of served) {
+    // express notation :param → openapi {param}
+    const normalized = served.map((r) => r.replace(/:([^/]+)/g, '{$1}'));
+    for (const route of normalized) {
       expect(documented).toContain(route);
     }
     expect(served.length).toBeGreaterThanOrEqual(2); // live + ready today
@@ -117,14 +88,19 @@ describe('OpenAPI documentation contract (issue #18 / 1.9)', () => {
           string,
           { example?: unknown; content?: unknown }
         >;
-        const success = Object.keys(responses).find((code) => code.startsWith('2'));
+        const success = Object.keys(responses).find(
+          (code) => code.startsWith('2') || code.startsWith('3'),
+        );
         if (!success) {
           failures.push(`${label}: no 2xx response documented`);
           continue;
         }
         const ok = responses[success]!;
+        const noBody = success.startsWith('3') || success === '204';
         const hasExample =
-          ok.example !== undefined || JSON.stringify(ok.content ?? {}).includes('example');
+          noBody ||
+          ok.example !== undefined ||
+          JSON.stringify(ok.content ?? {}).includes('example');
         if (!hasExample) failures.push(`${label}: 2xx response lacks an example`);
       }
     }
@@ -143,7 +119,7 @@ describe('OpenAPI documentation contract (issue #18 / 1.9)', () => {
       .overrideProvider(MongooseHealthIndicator)
       .useValue({ pingCheck: jest.fn() })
       .overrideProvider(AppConfigService)
-      .useValue({ ...fakeConfig, core: { ...fakeConfig.core, swaggerEnabled: false } })
+      .useValue({ ...DOCS_FAKE_CONFIG, core: { ...DOCS_FAKE_CONFIG.core, swaggerEnabled: false } })
       .compile();
     const offApp = ref.createNestApplication<NestExpressApplication>({
       logger: false,

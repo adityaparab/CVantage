@@ -158,11 +158,7 @@ export class AuthController {
       'Discards the presented refresh token and clears both auth cookies. ' +
       'Idempotent — succeeds even without a live session.',
   })
-  @ApiNoContentResponse({
-    description: 'Session ended; cookies cleared',
-    example: undefined,
-    content: { 'application/json': { example: null } },
-  })
+  @ApiNoContentResponse({ description: 'Session ended; cookies cleared (no body)' })
   @ApiStandardErrors()
   async logout(
     @Req() req: Request,

@@ -7,6 +7,7 @@ import { AppConfigService } from '../config';
 export const API_TAGS: ReadonlyArray<{ name: string; description: string }> = [
   { name: 'health', description: 'Liveness/readiness probes consumed by Docker and Railway' },
   { name: 'auth', description: 'Registration, login and (from #23) token lifecycle' },
+  { name: 'users', description: 'Authenticated self-service: profile and password' },
   // Tags register here as their modules land: auth (#21), users (#27),
   // resumes (#31), analyses (#43), notifications (#48), admin (#52), export (#81).
 ];
