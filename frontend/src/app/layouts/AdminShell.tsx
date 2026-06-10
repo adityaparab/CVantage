@@ -36,8 +36,8 @@ export default function AdminShell() {
               <NavLink to="/admin/users" className={navLink}>
                 Users
               </NavLink>
-              <NavLink to="/admin/models" className={navLink}>
-                Models
+              <NavLink to="/admin/settings" className={navLink}>
+                Settings
               </NavLink>
             </div>
           </div>

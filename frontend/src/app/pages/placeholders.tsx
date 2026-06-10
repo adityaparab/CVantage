@@ -13,11 +13,6 @@ function Placeholder({ title, note, icon }: { title: string; note: string; icon?
   );
 }
 
-export function AdminDashboardPage() {
-  return (
-    <Placeholder title="Admin dashboard" note="Admin stats land with Phase 9 (#78)." icon="🛠️" />
-  );
-}
 export function AdminUsersPage() {
   return (
     <Placeholder
