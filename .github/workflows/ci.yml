@@ -149,3 +149,28 @@ jobs:
           # yarn1 exit code is a bitmask; 8=high, 16=critical
           if [ $((code & 24)) -ne 0 ]; then echo 'high/critical advisories found'; exit 1; fi
           echo 'no high/critical advisories'
+
+  quickstart-check:
+    name: readme quickstart (clean clone)
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports: ['27017:27017']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm i -g yarn@1.22.22 --force
+      # exactly the README commands (compose db replaced by the service)
+      - run: yarn install
+      - run: cp .env.example .env
+      - run: yarn build
+      - name: boot + health check
+        run: |
+          LLM_PROVIDER=fake node server/dist/main.js &
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:3000/api/v1/health/live && exit 0
+            sleep 1
+          done
+          echo 'server never became healthy'; exit 1

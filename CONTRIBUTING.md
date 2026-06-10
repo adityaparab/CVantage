@@ -1,59 +1,31 @@
-# Contributing to CVantage
+# Contributing
 
 ## Workflow
 
-Work is tracked as GitHub issues (12 phase epics → 85 tasks; see `PLAN.md`).
-One issue at a time: implement → tests green → conventional commit referencing
-the issue (`Closes #N`) → push. CI must stay green on `main`.
+1. Branch from `main` (`feat/...`, `fix/...`, `docs/...`).
+2. Commit with **conventional commits** — enforced by commitlint:
+   `type(scope): subject` with scope one of
+   `server | frontend | shared | infra | docs | deps`.
+3. Push and open a PR; CI must be green (lint, typecheck, unit suites with
+   coverage gates, API e2e, Playwright, bundle budget, Lighthouse, audit +
+   gitleaks).
 
-## Commit messages — conventional commits (enforced)
+## Hooks (husky)
 
-The `commit-msg` hook runs commitlint. Format:
+- **pre-commit**: lint-staged → eslint --fix + prettier on staged files,
+  then *related tests only* (jest `--findRelatedTests` server-side, `vitest
+  related` client-side) — commits stay fast.
+- **commit-msg**: commitlint.
 
-```
-<type>(<scope>): <imperative subject>  (#issue optional in subject)
+## Conventions that bite
 
-[optional body — wrap at 100 chars]
-
-Closes #N
-```
-
-- **Types:** `feat`, `fix`, `chore`, `docs`, `test`, `refactor`, `perf`, `ci`, `build`, `style`, `revert`
-- **Scopes (enforced enum):** `server`, `frontend`, `shared`, `infra`, `docs`, `deps`
-- Subject: lower-case start, no trailing period.
-
-Examples:
-
-```
-feat(server): add health module with mongo readiness probe
-
-Closes #15
-```
-
-```
-fix(frontend): keep bell notification across route changes (#71)
-```
-
-## Pre-commit hook
-
-Runs automatically (husky + lint-staged) on staged files:
-
-1. `eslint --fix` (zero-warning policy)
-2. `prettier --write`
-3. Related unit tests for touched `server/`/`frontend/` sources
-   (activates automatically once the jest/vitest harnesses land — issues #19/#63)
-
-Auto-fixed files are re-staged by lint-staged. A commit that still fails lint
-or related tests is blocked. `--no-verify` is discouraged — CI gates everything
-again on push/PR.
-
-## Hooks setup
-
-Hooks install automatically via the root `prepare` script on `yarn install`.
-Nothing manual to do.
-
-## Branch protection (repo settings — recommended)
-
-Protect `main`: require the CI status checks (list finalized in issue #95 / 11.3),
-require linear history. Direct pushes are reserved for the issue-by-issue
-implementation flow agreed in `PLAN.md` §11.
+- Validation lives in `@cvantage/shared` zod schemas — client and server
+  import the same objects. Never fork a schema.
+- `process.env` is forbidden outside `server/src/config` and scripts
+  (eslint-enforced). Add keys to the zod env schema + `.env.example`; a
+  parity test fails otherwise.
+- Every new API route must carry full Swagger metadata — the docs contract
+  test fails the build if a route lacks summary/description/examples. New
+  controllers must also be registered in `docs-probe.module.ts`.
+- New admin routes are auto-covered by the RBAC matrix e2e; new resource
+  routes belong in the IDOR matrix.

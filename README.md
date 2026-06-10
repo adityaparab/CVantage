@@ -1,43 +1,74 @@
 # CVantage
 
-[![CI](https://github.com/adityaparab/CVantage/actions/workflows/ci.yml/badge.svg)](https://github.com/adityaparab/CVantage/actions/workflows/ci.yml)
+**CV + vantage point** — AI-powered resume analysis. Upload or build a
+resume, paste a job description, get match scores, skill gaps, one-click
+suggestions and interview prep.
 
-**AI-powered resume analysis for job seekers.** Build or upload a resume, run it against any job description, and get scored insights — ATS compatibility, strengths and gaps, field-level improvement suggestions, and tailored interview questions — then apply suggestions and export to PDF/DOCX.
+![CI](https://github.com/adityaparab/CVantage/actions/workflows/ci.yml/badge.svg)
 
-> 🚧 **Under active development.** The implementation plan lives in [`PLAN.md`](./PLAN.md); work is tracked in [GitHub issues](https://github.com/adityaparab/CVantage/issues) (12 phase epics, one issue at a time).
-
-## Stack
-
-NestJS · MongoDB/Mongoose · LangChain (langchain-openai) · zod · React + TypeScript + Vite · Tailwind · TanStack Query — a Yarn 1.x workspaces monorepo (`server/`, `frontend/`, `shared/`).
+NestJS 11 · MongoDB/Mongoose 8 · React 19 + Vite 6 · TanStack Query ·
+Tailwind v4 · LangChain (OpenAI-compatible) · SSE live progress ·
+OTel + Sentry (env-gated) · Playwright
 
 ## Prerequisites
 
-- Node.js ≥ 22 (`.nvmrc`)
-- Yarn classic 1.22.x — `npm i -g yarn` (no corepack)
-- Docker (for local MongoDB and the full-container mode)
+- Node 22 (`nvm use 22`)
+- Yarn 1.x classic: `npm i -g yarn` (no corepack)
+- Docker (only for the Mongo container / full-stack profile)
 
 ## Quickstart
 
 ```bash
+git clone https://github.com/adityaparab/CVantage.git && cd CVantage
 yarn install
+cp .env.example .env            # dev defaults work out of the box
+docker compose --profile db up -d    # MongoDB on 27017
+yarn dev                        # server :3000 + vite :5173 (proxied /api)
 ```
 
-Local development setup (Mongo via Docker Compose, dev servers, environment variables) is delivered incrementally by the Phase 0–1 issues — this section is completed as they land:
+Open http://localhost:5173. API docs: http://localhost:3000/api/docs
+(spec: `/api/docs-json`). Seed an admin:
 
-- [x] `docker compose --profile db up -d` — local MongoDB
-- [ ] `yarn dev:server` / `yarn dev:frontend` — dev servers (issues #10, #58)
-- [ ] `.env` configuration — see `.env.example` (issue #11)
-
-## Repository layout
-
-```
-server/    NestJS API (serves the built frontend in production)
-frontend/  React + Vite client
-shared/    Shared zod schemas, DTOs, enums
-scripts/   Project tooling (GitHub issue bootstrap)
-database/  Canonical Mongoose schema reference
+```bash
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD='Choose-A-Strong-1' \
+  yarn workspace @cvantage/server seed:admin
 ```
 
-## Documents
+AI calls use your `OPENAI_API_KEY` from `.env` (or admin-managed models in
+Settings). For a zero-key demo set `LLM_PROVIDER=fake`.
 
-- [`PLAN.md`](./PLAN.md) — full implementation plan (phases, archite
+### Run modes
+
+| Mode | Command |
+|---|---|
+| Local dev (HMR) | `yarn dev` |
+| Production build, one port | `yarn build && yarn workspace @cvantage/server start:prod` |
+| Full stack in Docker | `docker compose --profile full up --build` |
+| Railway | see `docs/runbook.md` (≈15 min) |
+
+## Scripts
+
+| Script | What |
+|---|---|
+| `yarn dev` / `yarn build` / `yarn test` / `yarn lint` | all workspaces |
+| `yarn workspace @cvantage/server test:e2e` | API e2e (in-memory Mongo) |
+| `yarn e2e:browser` | Playwright over the built stack |
+| `yarn workspace @cvantage/frontend test:fast` | vitest without coverage |
+| `node scripts/check-bundle-budget.mjs` | bundle budget report |
+| `yarn workspace @cvantage/server smoke:llm` | real-provider LLM smoke |
+
+## Environment
+
+Every key is documented in [`.env.example`](.env.example) and validated at
+boot — a parity test keeps the two in lockstep. Highlights: `MONGODB_URI`,
+JWT/cookie secrets (dev defaults rejected in production),
+`MASTER_ENCRYPTION_KEY` (32-byte base64; encrypts provider keys),
+`LLM_*`, OAuth pairs (feature-flagged), `SENTRY_DSN` /
+`OTEL_EXPORTER_OTLP_ENDPOINT` (both optional, zero overhead unset).
+
+## More
+
+- [`docs/architecture.md`](docs/architecture.md) — module map + flows
+- [`docs/runbook.md`](docs/runbook.md) — deploy, rotate, restore, recover
+- [`docs/security.md`](docs/security.md) — threat model + enforcements
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — workflow + conventions
