@@ -30,6 +30,25 @@ services:
 
 volumes:
   mongo-data:
+  uploads:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cvantage-app
+    profiles: ['full']
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/cvantage
+    ports:
+      - '3000:3000'
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
 
   otel-collector:
     image: otel/opentelemetry-collector:0.103.0

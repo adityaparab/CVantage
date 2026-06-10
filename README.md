@@ -43,8 +43,11 @@ Settings). For a zero-key demo set `LLM_PROVIDER=fake`.
 |---|---|
 | Local dev (HMR) | `yarn dev` |
 | Production build, one port | `yarn build && yarn workspace @cvantage/server start:prod` |
-| Full stack in Docker | `docker compose --profile full up --build` |
+| Full stack in Docker | `cp .env.docker.example .env.docker` then `docker compose --profile full up --build` |
 | Railway | see `docs/runbook.md` (≈15 min) |
+
+Data (Mongo + uploads) survives `compose down` via named volumes;
+`docker compose --profile full down -v` is the full reset.
 
 ## Scripts
 
