@@ -25,6 +25,23 @@ jobs:
       - run: yarn lint
       - run: yarn format:check
 
+  openapi-spec:
+    name: openapi.json artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace @cvantage/server build
+      - run: node server/dist/scripts/export-openapi.js openapi.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi.json
+
   workspace:
     name: ${{ matrix.workspace }} — typecheck, test, build
     runs-on: ubuntu-latest

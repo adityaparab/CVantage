@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   DiskHealthIndicator,
   HealthCheck,
@@ -11,14 +12,31 @@ import { SkipThrottle } from '@nestjs/throttler';
 
 import { AppConfigService } from '../config';
 
+const READY_OK_EXAMPLE = {
+  status: 'ok',
+  info: { mongodb: { status: 'up' }, disk: { status: 'up' }, memory_heap: { status: 'up' } },
+  error: {},
+  details: { mongodb: { status: 'up' }, disk: { status: 'up' }, memory_heap: { status: 'up' } },
+};
+
+const READY_DOWN_EXAMPLE = {
+  status: 'error',
+  info: { disk: { status: 'up' }, memory_heap: { status: 'up' } },
+  error: { mongodb: { status: 'down', message: 'connection is not ready' } },
+  details: {
+    mongodb: { status: 'down', message: 'connection is not ready' },
+    disk: { status: 'up' },
+    memory_heap: { status: 'up' },
+  },
+};
+
 /**
  * Health endpoints (issue #15 / 1.6) — wired to Docker HEALTHCHECK (#93)
  * and Railway healthcheckPath (#96).
- * - live:  process is up (no dependencies touched)
- * - ready: Mongo ping + disk + heap within thresholds → 503 on any failure
- * Public by design; excluded from throttling in #16 and from auth in #22.
+ * Public by design; throttling-exempt; excluded from auth in #22.
  * Terminus responses contain component status only — no URIs or internals.
  */
+@ApiTags('health')
 @SkipThrottle()
 @Controller('health')
 export class HealthController {
@@ -32,12 +50,35 @@ export class HealthController {
 
   @Get('live')
   @HealthCheck()
+  @ApiOperation({
+    summary: 'Liveness probe',
+    description:
+      'Confirms the process is up and serving HTTP. Touches no dependencies — ' +
+      'stays green even when MongoDB is down. Use /health/ready for routing decisions.',
+  })
+  @ApiOkResponse({
+    description: 'Process is alive',
+    example: { status: 'ok', info: {}, error: {}, details: {} },
+  })
   live(): Promise<HealthCheckResult> {
     return this.health.check([]);
   }
 
   @Get('ready')
   @HealthCheck()
+  @ApiOperation({
+    summary: 'Readiness probe',
+    description:
+      'Verifies the instance can serve real traffic: MongoDB ping (3s timeout), ' +
+      'disk usage below HEALTH_DISK_PERCENT and heap below HEALTH_MEM_HEAP_MB. ' +
+      'Returns 503 with per-component status when any check fails.',
+  })
+  @ApiOkResponse({ description: 'All dependencies healthy', example: READY_OK_EXAMPLE })
+  @ApiResponse({
+    status: 503,
+    description: 'One or more dependencies failing — instance must not receive traffic',
+    example: READY_DOWN_EXAMPLE,
+  })
   ready(): Promise<HealthCheckResult> {
     const { healthMemHeapMb, healthDiskPercent } = this.config.core;
     return this.health.check([

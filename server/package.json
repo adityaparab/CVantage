@@ -19,6 +19,7 @@
     "@nestjs/core": "^11",
     "@nestjs/mongoose": "^11",
     "@nestjs/platform-express": "^11",
+    "@nestjs/swagger": "^11",
     "@nestjs/terminus": "^11",
     "@nestjs/throttler": "^6",
     "compression": "^1.8.1",
