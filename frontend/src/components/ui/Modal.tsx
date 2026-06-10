@@ -25,6 +25,10 @@ export function Modal({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
+  // stable ref so re-renders (e.g. controlled inputs inside) never re-run
+  // the open effect - that used to steal focus on every keystroke
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -32,7 +36,7 @@ export function Modal({
     const panel = panelRef.current;
     panel?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
       if (e.key === 'Tab' && panel) {
         const nodes = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)];
         if (nodes.length === 0) return;
@@ -52,7 +56,7 @@ export function Modal({
       document.removeEventListener('keydown', onKey);
       restoreRef.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return createPortal(
