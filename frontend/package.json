@@ -14,12 +14,15 @@
   "dependencies": {
     "@cvantage/shared": "*",
     "@tailwindcss/vite": "^4.3.0",
+    "@tanstack/react-query": "^5.101.0",
+    "axios": "^1.17.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router": "^7.17.0",
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
+    "@tanstack/react-query-devtools": "^5.101.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",

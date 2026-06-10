@@ -1,13 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  fullName: string;
-  role: 'candidate' | 'admin';
-}
+import { authApi } from '@/api/endpoints/auth';
+import { AUTH_EXPIRED_EVENT } from '@/api/http';
+import { keys } from '@/api/keys';
+import type { Types } from '@/api/types';
 
+export type AuthUser = Types.AuthUser;
 export type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
 
 export interface AuthState {
@@ -26,42 +26,49 @@ export function useAuth(): AuthState {
 }
 
 /**
- * Minimal cookie-session auth state (issue #60 / 7.3). The TanStack-powered
- * client (#61) replaces the internals; the context shape is the contract the
- * guards depend on.
+ * TanStack-powered session state (issue #61 / 7.4). Cookies carry the
+ * tokens (httpOnly); the http layer transparently single-flight-refreshes;
+ * a failed refresh fires AUTH_EXPIRED_EVENT and we drop to anonymous and
+ * clear every cached query.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus>('loading');
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const queryClient = useQueryClient();
+  const me = useQuery({
+    queryKey: keys.auth.me(),
+    queryFn: authApi.me,
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const status: AuthStatus = me.isPending
+    ? 'loading'
+    : me.isSuccess
+      ? 'authenticated'
+      : 'anonymous';
 
   const refresh = useCallback(async () => {
-    try {
-      const res = await fetch('/api/v1/users/me', { credentials: 'include' });
-      if (!res.ok) throw new Error(String(res.status));
-      const body = (await res.json()) as AuthUser;
-      setUser(body);
-      setStatus('authenticated');
-    } catch {
-      setUser(null);
-      setStatus('anonymous');
-    }
-  }, []);
+    await queryClient.invalidateQueries({ queryKey: keys.auth.me() });
+  }, [queryClient]);
 
   const signOut = useCallback(async () => {
-    await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' }).catch(
-      () => undefined,
-    );
-    setUser(null);
-    setStatus('anonymous');
-  }, []);
+    await authApi.logout().catch(() => undefined);
+    queryClient.clear();
+    queryClient.setQueryData(keys.auth.me(), undefined);
+    await queryClient.invalidateQueries({ queryKey: keys.auth.me() });
+  }, [queryClient]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    const onExpired = () => {
+      queryClient.clear();
+      void queryClient.invalidateQueries({ queryKey: keys.auth.me() });
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
+  }, [queryClient]);
 
-  const value = useMemo(
-    () => ({ status, user, refresh, signOut }),
-    [status, user, refresh, signOut],
+  const value = useMemo<AuthState>(
+    () => ({ status, user: me.data ?? null, refresh, signOut }),
+    [status, me.data, refresh, signOut],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

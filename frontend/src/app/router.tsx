@@ -17,8 +17,9 @@ import {
   LoginPage,
   RegisterPage,
 } from './pages/placeholders';
+import { QueryProvider } from './query';
 
-import { Skeleton } from '@/components/ui';
+import { Skeleton, ToastProvider } from '@/components/ui';
 import { AuthProvider } from '@/features/auth/auth-context';
 import { env } from '@/lib/env';
 
@@ -35,10 +36,14 @@ function PageFallback() {
 
 function Root() {
   return (
-    <AuthProvider>
-      <ScrollRestoration />
-      <Outlet />
-    </AuthProvider>
+    <QueryProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <ScrollRestoration />
+          <Outlet />
+        </ToastProvider>
+      </AuthProvider>
+    </QueryProvider>
   );
 }
 
