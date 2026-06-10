@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 import { configureApp } from './app.setup';
 import { AppConfigService } from './config';
 import { setupSwagger } from './docs/swagger.setup';
+import { mountSpa } from './spa/spa.middleware';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -16,6 +17,9 @@ async function bootstrap(): Promise<void> {
 
   configureApp(app);
   setupSwagger(app);
+  if (mountSpa(app)) {
+    app.get(Logger).log('serving frontend/dist (SPA fallback active)', 'Bootstrap');
+  }
 
   const { port } = app.get(AppConfigService).core;
   await app.listen(port, '0.0.0.0');
