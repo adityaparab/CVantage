@@ -77,3 +77,95 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     expect(second.filter((c) => c.userId === String(u._id))).toEqual([]);
   });
 });
+
+describe('job runner over real mongo (issue #40 / 4.3)', () => {
+  jest.setTimeout(120_000);
+
+  let mongo2: MongoTestContext;
+  let conn: mongoose.Connection;
+
+  beforeAll(async () => {
+    if (!(await mongoAvailable())) {
+      throw new Error('mongodb-memory-server unavailable in this environment');
+    }
+    mongo2 = await startMongo();
+    conn = await mongoose.createConnection(mongo2.uri).asPromise();
+  });
+
+  afterAll(async () => {
+    await conn?.close();
+    await mongo2?.stop();
+  });
+
+  const jobSchema = new mongoose.Schema(
+    {
+      status: { type: String, default: 'pending' },
+      retryCount: { type: Number, default: 0 },
+      claimedBy: String,
+      heartbeatAt: Date,
+      error: String,
+      payload: Number,
+    },
+    { timestamps: true },
+  );
+
+  const queueCfg = (model: mongoose.Model<unknown>) => ({
+    name: 'stress',
+    model: model as never,
+    statusPath: 'status',
+    pendingValue: 'pending',
+    processingValue: 'in_progress',
+    failedValue: 'failed',
+    ownerPath: 'claimedBy',
+    heartbeatPath: 'heartbeatAt',
+    retryPath: 'retryCount',
+    errorPath: 'error',
+    sortField: 'createdAt',
+  });
+
+  it('1000-job race across two runners: claimed exactly once each', async () => {
+    const { MongoJobRunner } = await import('../src/jobs/job-runner.js');
+    const model = conn.model('StressJob', jobSchema, 'stressjobs');
+    await model.insertMany(
+      Array.from({ length: 1000 }, (_, i) => ({ status: 'pending', payload: i })),
+    );
+    const seen: number[] = [];
+    const handler = async (j: { payload?: number; _id: unknown }) => {
+      seen.push(j.payload as number);
+      await model.updateOne({ _id: j._id }, { $set: { status: 'completed' } });
+    };
+    const a = new MongoJobRunner(queueCfg(model as never), handler as never, { concurrency: 4 });
+    const b = new MongoJobRunner(queueCfg(model as never), handler as never, { concurrency: 4 });
+    while ((await model.countDocuments({ status: 'pending' })) > 0) {
+      await Promise.all([a.tick(), b.tick()]);
+      await Promise.all([a.idle(), b.idle()]);
+    }
+    await Promise.all([a.idle(), b.idle()]);
+    expect(seen).toHaveLength(1000);
+    expect(new Set(seen).size).toBe(1000);
+    expect(await model.countDocuments({ status: 'completed' })).toBe(1000);
+  });
+
+  it('killed worker: stale claim recovered and completed by the survivor', async () => {
+    const { MongoJobRunner } = await import('../src/jobs/job-runner.js');
+    const model = conn.model('StressJob', jobSchema, 'stressjobs');
+    const dead = await model.create({
+      status: 'in_progress',
+      claimedBy: 'worker-that-died',
+      heartbeatAt: new Date(Date.now() - 120_000),
+      payload: -1,
+    });
+    const survivor = new MongoJobRunner(
+      queueCfg(model as never),
+      (async (j: { _id: unknown }) => {
+        await model.updateOne({ _id: j._id }, { $set: { status: 'completed' } });
+      }) as never,
+      { concurrency: 1, staleMs: 45_000 },
+    );
+    await survivor.recover('test');
+    await survivor.tick();
+    await survivor.idle();
+    const after = await model.findById(dead._id).lean();
+    expect(after).toMatchObject({ status: 'completed', retryCount: 1 });
+  });
+});

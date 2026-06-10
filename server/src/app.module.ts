@@ -12,6 +12,7 @@ import { AllExceptionsFilter, ZodValidationPipe } from './common';
 import { AppConfigModule, AppConfigService } from './config';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { JobsModule } from './jobs';
 import { LifecycleModule } from './lifecycle/lifecycle.module';
 import { MailModule } from './mail/mail.module';
 import { LoggingModule } from './observability/logging.module';
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     MailModule,
     StorageModule,
     AiModule,
+    JobsModule,
     HealthModule,
     AuthModule,
     OAuthModule,

@@ -24,6 +24,10 @@ export class UploadParse {
   @Prop({ type: Date }) startedAt?: Date;
   @Prop({ type: Date }) completedAt?: Date;
   @Prop({ trim: true, maxlength: 2000 }) error?: string;
+  /* Worker bookkeeping (issue #40 / 4.3). */
+  @Prop({ default: 0, min: 0 }) retryCount?: number;
+  @Prop({ trim: true }) claimedBy?: string;
+  @Prop({ type: Date }) heartbeatAt?: Date;
 }
 const UploadParseSchema = SchemaFactory.createForClass(UploadParse);
 

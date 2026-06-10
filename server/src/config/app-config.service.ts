@@ -90,6 +90,10 @@ export class AppConfigService {
     };
   }
 
+  get jobs() {
+    return { concurrency: this.get('JOB_CONCURRENCY') };
+  }
+
   get llm() {
     return {
       provider: this.get('LLM_PROVIDER'),

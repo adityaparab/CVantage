@@ -94,6 +94,10 @@ export class Analysis {
   @Prop({ trim: true, maxlength: 2000 }) error?: string;
   @Prop({ default: 0, min: 0, max: 5 }) retryCount!: number;
 
+  /* Worker bookkeeping (issue #40 / 4.3) — claim ownership + liveness. */
+  @Prop({ trim: true }) claimedBy?: string;
+  @Prop({ type: Date }) heartbeatAt?: Date;
+
   @Prop({ default: 1 }) schemaVersion!: number;
 }
 export type AnalysisDocument = HydratedDocument<Analysis>;
