@@ -27,7 +27,11 @@ export function configureApp(app: NestExpressApplication): NestExpressApplicatio
   // Security headers. CSP is intentionally off until #87 (10.7) ships a
   // strict policy compatible with the SPA + Swagger UI.
   app.use(helmet({ contentSecurityPolicy: false }));
-  app.use(compression());
+  app.use(
+    compression({
+      filter: (req, res) => (req.path.endsWith('/events') ? false : compression.filter(req, res)),
+    }),
+  );
   app.use(cookieParser(config.auth.cookieSecret));
 
   // Request body bounds (multipart uploads get their own limits in #35).

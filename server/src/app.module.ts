@@ -20,6 +20,7 @@ import { MailModule } from './mail/mail.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { LoggingModule } from './observability/logging.module';
 import { ResumesModule } from './resumes/resumes.module';
+import { SseModule } from './sse/sse.module';
 import { StorageModule } from './storage/storage.module';
 import { UsersModule } from './users/users.module';
 
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     ResumesModule,
     AnalysesModule,
     NotificationsModule,
+    SseModule,
     LifecycleModule,
     ThrottlerModule.forRootAsync({
       inject: [AppConfigService],

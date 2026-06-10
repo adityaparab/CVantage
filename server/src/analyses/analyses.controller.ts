@@ -13,33 +13,13 @@ import type { RequestUser } from '../auth/request-user';
 import { ApiPagination } from '../common/docs/api-pagination.decorator';
 import { ApiStandardErrors } from '../common/docs/api-standard-errors.decorator';
 import { ObjectIdPipe } from '../common/validation/object-id.pipe';
-import { AnalysisDocument } from '../database/schemas';
 import { NotificationsService } from '../notifications/notifications.service';
 
 import { AnalysesService } from './analyses.service';
+import { toAnalysisView } from './analysis.view';
 import { CreateAnalysisDto, ListAnalysesDto } from './dto/analysis.dtos';
 
-const toView = (doc: AnalysisDocument) => ({
-  id: String(doc._id),
-  resumeId: String(doc.resumeId),
-  name: doc.name,
-  status: doc.status,
-  steps: doc.steps.map((s) => ({
-    key: s.key,
-    status: s.status,
-    startedAt: s.startedAt,
-    completedAt: s.completedAt,
-    error: s.error,
-  })),
-  result: doc.result,
-  tokensUsed: doc.tokensUsed,
-  modelUsed: doc.modelUsed,
-  error: doc.error,
-  startedAt: doc.startedAt,
-  completedAt: doc.completedAt,
-  durationMs: doc.durationMs,
-  createdAt: (doc as unknown as { createdAt: Date }).createdAt,
-});
+const toView = toAnalysisView;
 
 /** Analysis intake + polling (issue #42 / 4.5); list/apply land with #43. */
 @ApiTags('Analyses')

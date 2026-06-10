@@ -10,6 +10,7 @@ import type { ConsoleMailDriver } from '../src/mail/console.driver';
 import { MailService } from '../src/mail/mail.service';
 
 import { mongoAvailable, startMongo, type MongoTestContext } from './mongo-test.util';
+import { consumeSse } from './sse-client';
 
 /**
  * Full-application e2e against mongodb-memory-server (issue #19 / 1.10).
@@ -29,6 +30,8 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     mongo = await startMongo();
     process.env.MONGODB_URI = mongo.uri;
     process.env.LLM_PROVIDER = 'fake'; // D17: deterministic AI fixtures
+    process.env.SSE_HEARTBEAT_MS = '200';
+    process.env.SSE_MAX_CONNECTIONS_PER_USER = '2';
     process.env.NODE_ENV = 'test';
     process.env.LOG_LEVEL = 'fatal';
     // Import AFTER env so @nestjs/config validate sees the test URI.
@@ -38,6 +41,7 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     configureApp(app);
     setupSwagger(app);
     await app.init();
+    await app.listen(0); // raw-socket consumers (SSE e2e) need a bound port
   });
 
   afterAll(async () => {
@@ -47,6 +51,7 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
   });
 
   const http = () => request(app.getHttpServer() as App);
+  const server = () => app.getHttpServer() as import('node:http').Server;
 
   it('GET /api/v1/health/live → 200', async () => {
     const res = await http().get('/api/v1/health/live').expect(200);
@@ -316,6 +321,108 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         .post(`/api/v1/notifications/${row.id}/clear`)
         .set({ Authorization: `Bearer ${l.body.accessToken}` })
         .expect(404);
+    });
+  });
+
+  describe('SSE streams (issue #49 / 5.2)', () => {
+    const creds = { email: 'sse@e2e.test', fullName: 'Streamer', password: 'Engine-9111X' };
+    let bearer = '';
+    let cookie = '';
+    let resumeId = '';
+    const auth = () => ({ Authorization: `Bearer ${bearer}` });
+    const JD = 'A thorough job description for a senior platform engineering position with NestJS.';
+
+    beforeAll(async () => {
+      await http().post('/api/v1/auth/register').send(creds).expect(201);
+      const login = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      bearer = login.body.accessToken as string;
+      const cookies = (login.headers['set-cookie'] as unknown as string[]) ?? [];
+      cookie = cookies.map((c) => c.split(';')[0]).join('; ');
+      const r = await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({ name: 'SSE Target', jsonResume: { basics: { name: 'Ada' } } })
+        .expect(201);
+      resumeId = r.body.id as string;
+    });
+
+    it('live analysis stream: snapshot -> transitions -> terminal close; exact headers', async () => {
+      const created = await http()
+        .post('/api/v1/analyses')
+        .set(auth())
+        .send({ name: 'SSE journey', jobDescription: JD, resumeId })
+        .expect(201);
+      const capture = await consumeSse(
+        server(),
+        `/api/v1/analyses/${created.body.id}/events`,
+        cookie,
+        { maxMs: 20_000, until: () => false }, // run to server-side close
+      );
+      expect(capture.status).toBe(200);
+      expect(capture.headers['content-type']).toContain('text/event-stream');
+      expect(capture.headers['cache-control']).toBe('no-cache');
+      expect(capture.headers['x-accel-buffering']).toBe('no');
+      expect(capture.closedByServer).toBe(true); // closes itself after terminal
+      expect(capture.events[0]!.event).toBe('snapshot');
+      const last = capture.events.at(-1)!;
+      expect(last.event).toMatch(/snapshot|status/);
+      expect((last.data as { status: string }).status).toBe('completed');
+      // polling fallback returns the structurally identical DTO (#50 contract)
+      const polled = await http()
+        .get(`/api/v1/analyses/${created.body.id}`)
+        .set(auth())
+        .expect(200);
+      expect(Object.keys(polled.body).sort()).toEqual(
+        Object.keys(last.data as Record<string, unknown>).sort(),
+      );
+    });
+
+    it('reconnect after completion: snapshot carries terminal state, then immediate close', async () => {
+      const list = await http()
+        .get(`/api/v1/analyses?status=completed&limit=1`)
+        .set(auth())
+        .expect(200);
+      const done = (list.body.items as Array<{ id: string }>)[0]!.id;
+      const capture = await consumeSse(server(), `/api/v1/analyses/${done}/events`, cookie, {
+        maxMs: 5000,
+      });
+      expect(capture.closedByServer).toBe(true);
+      expect(capture.events).toHaveLength(1);
+      expect((capture.events[0]!.data as { status: string }).status).toBe('completed');
+    });
+
+    it('heartbeats arrive on an idle bell stream; cap yields 429; auth/ownership enforced', async () => {
+      const idle = await consumeSse(server(), '/api/v1/notifications/events', cookie, {
+        maxMs: 700,
+      });
+      expect(idle.events[0]!.event).toBe('snapshot');
+      expect(idle.comments.some((c) => c.includes('ping'))).toBe(true); // 200ms cadence in e2e
+
+      const holdA = consumeSse(server(), '/api/v1/notifications/events', cookie, { maxMs: 2500 });
+      const holdB = consumeSse(server(), '/api/v1/notifications/events', cookie, { maxMs: 2500 });
+      await new Promise((r) => setTimeout(r, 300)); // both established (cap=2 in e2e env)
+      const third = await consumeSse(server(), '/api/v1/notifications/events', cookie, {
+        maxMs: 2000,
+      });
+      expect(third.status).toBe(429);
+      await Promise.all([holdA, holdB]);
+
+      const unauth = await consumeSse(server(), '/api/v1/notifications/events', '', {
+        maxMs: 1500,
+      });
+      expect(unauth.status).toBe(401);
+      const foreign = await consumeSse(
+        server(),
+        `/api/v1/analyses/${'0'.repeat(24)}/events`,
+        cookie,
+        {
+          maxMs: 1500,
+        },
+      );
+      expect(foreign.status).toBe(404);
     });
   });
 

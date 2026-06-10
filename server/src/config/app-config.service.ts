@@ -90,6 +90,13 @@ export class AppConfigService {
     };
   }
 
+  get sse() {
+    return {
+      heartbeatMs: this.get('SSE_HEARTBEAT_MS'),
+      maxConnectionsPerUser: this.get('SSE_MAX_CONNECTIONS_PER_USER'),
+    };
+  }
+
   get jobs() {
     return { concurrency: this.get('JOB_CONCURRENCY') };
   }

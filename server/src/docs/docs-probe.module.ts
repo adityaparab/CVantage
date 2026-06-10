@@ -16,6 +16,7 @@ import { TokensService } from '../auth/tokens.service';
 import { VerificationTokensService } from '../auth/verification-tokens.service';
 import { AppConfigService } from '../config';
 import { User } from '../database/schemas';
+import { ProgressBusService } from '../events';
 import { HealthModule } from '../health/health.module';
 import { MailService } from '../mail/mail.service';
 import { NotificationsController } from '../notifications/notifications.controller';
@@ -24,6 +25,8 @@ import { ResumesController } from '../resumes/resumes.controller';
 import { ResumesService } from '../resumes/resumes.service';
 import { UploadController } from '../resumes/upload.controller';
 import { UploadService } from '../resumes/upload.service';
+import { SseHubService } from '../sse/sse-hub.service';
+import { SseController } from '../sse/sse.controller';
 import { UsersController } from '../users/users.controller';
 
 /**
@@ -56,6 +59,8 @@ export const DOCS_FAKE_CONFIG = {
     { provide: ResumesService, useValue: {} },
     { provide: AnalysesService, useValue: {} },
     { provide: NotificationsService, useValue: {} },
+    { provide: SseHubService, useValue: {} },
+    { provide: ProgressBusService, useValue: {} },
     { provide: UploadService, useValue: {} },
     { provide: VerificationTokensService, useValue: {} },
     { provide: MailService, useValue: {} },
@@ -72,6 +77,8 @@ export const DOCS_FAKE_CONFIG = {
     ResumesService,
     AnalysesService,
     NotificationsService,
+    SseHubService,
+    ProgressBusService,
     UploadService,
     VerificationTokensService,
     MailService,
@@ -92,6 +99,7 @@ class DocsStubsModule {}
     UploadController,
     AnalysesController,
     NotificationsController,
+    SseController,
   ],
 })
 export class DocsProbeModule {}
