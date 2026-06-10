@@ -23,8 +23,8 @@
     "declaration": false,
     "removeComments": false,
     "isolatedModules": true,
-    "rootDir": "./src"
+    "rootDir": "."
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "test/**/*"],
   "exclude": ["node_modules", "dist"]
 }

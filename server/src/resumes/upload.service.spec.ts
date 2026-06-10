@@ -32,11 +32,20 @@ describe('upload validation (issue #35 / 3.5)', () => {
       find: jest.fn().mockReturnValue({ select: () => ({ exec: async () => [] }) }),
       ...((overrides.resumes as object) ?? {}),
     };
+    const extraction = {
+      extract: jest.fn().mockResolvedValue({ text: 'extracted text', truncated: false, chars: 14 }),
+    };
     return {
       storage,
       resumesService,
       resumes,
-      service: new UploadService(storage as never, resumesService as never, resumes as never),
+      extraction,
+      service: new UploadService(
+        storage as never,
+        resumesService as never,
+        extraction as never,
+        resumes as never,
+      ),
     };
   };
 

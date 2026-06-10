@@ -8,6 +8,7 @@ import { AppException } from '../common';
 import { Resume, ResumeDocument, ResumeSource, UploadParseStatus } from '../database/schemas';
 import { StorageService } from '../storage/storage.types';
 
+import { ExtractionError, ExtractionService } from './extraction.service';
 import { ResumesService } from './resumes.service';
 
 export type SniffedContainer = 'pdf' | 'zip' | 'ole2';
@@ -60,6 +61,7 @@ export class UploadService {
   constructor(
     private readonly storage: StorageService,
     private readonly resumesService: ResumesService,
+    private readonly extraction: ExtractionService,
     @InjectModel(Resume.name) private readonly resumes: Model<Resume>,
   ) {}
 
@@ -144,9 +146,20 @@ export class UploadService {
         storageKey: stored.key,
         sha256: stored.sha256,
       };
-      doc.uploadParse = { status: UploadParseStatus.PENDING } as never;
+      // Extract original text inline (issue #36 / 3.6) — fast and synchronous;
+      // the AI parse job (#42) consumes it and flips PENDING onward.
+      try {
+        const extracted = await this.extraction.extract(stored.key, rule.mime);
+        doc.originalText = extracted.text;
+        doc.uploadParse = { status: UploadParseStatus.PENDING } as never;
+      } catch (err) {
+        const reason =
+          err instanceof ExtractionError
+            ? `${err.code}: ${err.message}`
+            : 'EXTRACTION_FAILED: unexpected error';
+        doc.uploadParse = { status: UploadParseStatus.FAILED, error: reason } as never;
+      }
       await doc.save();
-      // Parse job enqueue lands with #42 (4.4); status stays pending until then.
       return doc;
     } catch (err) {
       await this.storage.delete(stored.key); // no partial state

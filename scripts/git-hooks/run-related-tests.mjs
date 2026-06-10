@@ -24,7 +24,13 @@ const hasRealTests = (ws) => {
 };
 
 const run = (cmd, args, cwd) => {
-  const r = spawnSync(cmd, args, { stdio: 'inherit', cwd, shell: process.platform === 'win32' });
+  const r = spawnSync(cmd, args, {
+    stdio: 'inherit',
+    cwd,
+    shell: process.platform === 'win32',
+    // langchain loaders dynamic-import ESM inside jest (#36)
+    env: { ...process.env, NODE_OPTIONS: '--experimental-vm-modules' },
+  });
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
 

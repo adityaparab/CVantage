@@ -31,7 +31,7 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     process.env.NODE_ENV = 'test';
     process.env.LOG_LEVEL = 'fatal';
     // Import AFTER env so @nestjs/config validate sees the test URI.
-    const { AppModule } = await import('../src/app.module');
+    const { AppModule } = await import('../src/app.module.js');
     const ref = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = ref.createNestApplication<NestExpressApplication>({ logger: false, bodyParser: false });
     configureApp(app);
@@ -127,7 +127,7 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
   describe('auth: session tokens (issue #23 / 2.2)', () => {
     const creds = { email: 'rot@e2e.test', fullName: 'Rotator', password: 'Engine-4242X' };
     const getCookies = (res: { headers: Record<string, unknown> }): string[] =>
-      ([] as string[]).concat((res.headers['set-cookie'] as string[]) ?? []);
+      ([] as string[]).concat((res.headers['set-cookie'] as unknown as string[]) ?? []);
     const cookieHeader = (cookies: string[]): string =>
       cookies.map((c) => c.split(';')[0]).join('; ');
 
@@ -220,7 +220,9 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         .post('/api/v1/auth/login')
         .send({ email: creds.email, password: creds.password })
         .expect(200);
-      const cookies = ([] as string[]).concat((login.headers['set-cookie'] as string[]) ?? []);
+      const cookies = ([] as string[]).concat(
+        (login.headers['set-cookie'] as unknown as string[]) ?? [],
+      );
       const cookieHeader = cookies.map((c) => c.split(';')[0]).join('; ');
 
       const mail = inbox()
@@ -256,7 +258,9 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         .post('/api/v1/auth/login')
         .send({ email: creds.email, password: creds.password })
         .expect(200);
-      const cookies = ([] as string[]).concat((res.headers['set-cookie'] as string[]) ?? []);
+      const cookies = ([] as string[]).concat(
+        (res.headers['set-cookie'] as unknown as string[]) ?? [],
+      );
       return {
         bearer: res.body.accessToken as string,
         cookieHeader: cookies.map((c) => c.split(';')[0]).join('; '),
@@ -437,7 +441,7 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     const creds = { email: 'upload@e2e.test', fullName: 'Upper', password: 'Engine-4242X' };
     let bearer = '';
     const auth = () => ({ Authorization: `Bearer ${bearer}` });
-    const PDF = Buffer.from('%PDF-1.4 minimal cvantage fixture');
+    const PDF: Buffer = Buffer.alloc(0);
     const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
     beforeAll(async () => {
@@ -466,6 +470,9 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
       expect(row!.originalFile.sizeBytes).toBe(PDF.length);
       expect(row!.originalFile.storageKey).toMatch(/.pdf$/);
       expect(row!.originalFile.sha256).toHaveLength(64);
+      // extraction ran inline (issue #36 / 3.6)
+      expect(String(row!.originalText)).toContain('Senior Engineer');
+      expect(res.body.originalText).toContain('TypeScript');
     });
 
     it('same filename dedupes to "… (2)"', async () => {
@@ -487,6 +494,17 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         })
         .expect(422);
       expect(JSON.stringify(res.body.details)).toContain('sniffed');
+    });
+
+    it('parseable container with corrupt content -> uploadParse failed with a typed reason', async () => {
+      const corrupt = Buffer.from('%PDF-1.4 but nothing real follows');
+      const res = await http()
+        .post('/api/v1/resumes/upload')
+        .set(auth())
+        .attach('file', corrupt, { filename: 'broken.pdf', contentType: 'application/pdf' })
+        .expect(201);
+      expect(res.body.uploadParse.status).toBe('failed');
+      expect(String(res.body.uploadParse.error)).toMatch(/CORRUPT_FILE|EMPTY_TEXT/);
     });
 
     it('declared-mime mismatch and oversize are rejected (422 / 413)', async () => {

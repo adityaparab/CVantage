@@ -52,9 +52,9 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
 
   it('db:reconcile-counters fixes skew (incl. negatives) and is then a no-op', async () => {
     const users = conn.models.User!;
-    const resumes =
-      conn.models.Resume ??
-      conn.model('Resume', (await import('../src/database/schemas')).ResumeSchema);
+    const { ResumeSchema } = await import('../src/database/schemas/index.js');
+    const resumes = (conn.models.Resume ??
+      conn.model('Resume', ResumeSchema)) as mongoose.Model<unknown>;
     const u = await users.create({
       email: 'skew@cvantage.test',
       fullName: 'Skew',
