@@ -18,6 +18,7 @@ describe('AuthService (issue #22 / 2.1)', () => {
     check: jest.fn().mockReturnValue({ blocked: false, retryAfterS: 0 }),
     recordFailure: jest.fn().mockResolvedValue(undefined),
     recordSuccess: jest.fn(),
+    hit: jest.fn().mockReturnValue({ blocked: false, retryAfterS: 0 }),
   };
 
   const makeModel = () => ({

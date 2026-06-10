@@ -7,6 +7,7 @@ module.exports = {
     '!src/main.ts',
     '!src/scripts/**',
     '!src/**/index.ts',
+    '!src/**/*.module.ts', // DI wiring only — exercised by e2e boots
   ],
   coverageThreshold: {
     global: { lines: 80, statements: 80, functions: 75, branches: 65 },

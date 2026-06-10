@@ -117,6 +117,8 @@ export class AccountController {
     @Body() body: ResetPasswordDto,
     @Ip() ip: string,
   ): Promise<{ reset: boolean }> {
+    const gate = this.lockout.hit('reset', 'token-flow', ip ?? 'unknown');
+    if (gate.blocked) throw new TooManyRequestsException(gate.retryAfterS);
     const userId = await this.verification.consume(TokenKind.PASSWORD_RESET, body.token!);
     const passwordHash = await this.hasher.hash(body.password!);
     await this.users.updateOne({ _id: userId }, { $set: { passwordHash } }).exec();

@@ -69,7 +69,9 @@ export class AuthService {
     };
   }
 
-  async register(input: { email: string; fullName: string; password: string }, ip?: string) {
+  async register(input: { email: string; fullName: string; password: string }, ip = 'unknown') {
+    const gate = this.lockout.hit('register', input.email, ip);
+    if (gate.blocked) throw new TooManyRequestsException(gate.retryAfterS);
     const passwordHash = await this.hasher.hash(input.password);
     // Duplicate (case-insensitive) email → MongoServerError 11000 → 409 envelope.
     const user = await this.users.create({
