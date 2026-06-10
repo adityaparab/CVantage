@@ -52,6 +52,120 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     expect(res.body.status).toBe('ok');
   });
 
+  describe('phase-3 hardening sweep (issue #37 / 3.7)', () => {
+    const creds = { email: 'sweep@e2e.test', fullName: 'Sweep', password: 'Engine-9911X' };
+    const foe = { email: 'sweep-foe@e2e.test', fullName: 'Foe', password: 'Engine-9912X' };
+    let bearer = '';
+    let foeBearer = '';
+    const auth = (token = bearer) => ({ Authorization: `Bearer ${token}` });
+
+    beforeAll(async () => {
+      for (const u of [creds, foe]) {
+        await http().post('/api/v1/auth/register').send(u).expect(201);
+      }
+      const a = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      bearer = a.body.accessToken as string;
+      const b = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: foe.email, password: foe.password })
+        .expect(200);
+      foeBearer = b.body.accessToken as string;
+    });
+
+    it('401 matrix: every resume route requires auth (uniform envelope)', async () => {
+      const id = '0'.repeat(24);
+      const attempts = [
+        http().get('/api/v1/resumes'),
+        http().post('/api/v1/resumes').send({ name: 'X', jsonResume: {} }),
+        http().get(`/api/v1/resumes/${id}`),
+        http().patch(`/api/v1/resumes/${id}`).send({ name: 'Y' }),
+        http().delete(`/api/v1/resumes/${id}`),
+        http().post('/api/v1/resumes/upload'),
+        http().get('/api/v1/users/me/stats'),
+      ];
+      for (const req of attempts) {
+        const res = await req.expect(401);
+        expect(res.body.error).toBe('Unauthorized');
+        expect(res.body.requestId).toBeDefined();
+      }
+    });
+
+    it('malformed ObjectId params are 400, not 500', async () => {
+      for (const bad of ['not-an-id', '123', '0'.repeat(23) + 'g']) {
+        const res = await http().get(`/api/v1/resumes/${bad}`).set(auth()).expect(400);
+        expect(res.body.message).toMatch(/identifier/i);
+      }
+    });
+
+    it('IDOR matrix completion: foreign PATCH is an existence-hiding 404', async () => {
+      const mine = await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({ name: 'Sweep Private', jsonResume: { basics: { name: 'S' } } })
+        .expect(201);
+      await http()
+        .patch(`/api/v1/resumes/${mine.body.id}`)
+        .set(auth(foeBearer))
+        .send({ name: 'Hijacked', version: 1 })
+        .expect(404);
+      // and the owner still sees the original, untouched
+      const check = await http().get(`/api/v1/resumes/${mine.body.id}`).set(auth()).expect(200);
+      expect(check.body.name).toBe('Sweep Private');
+    });
+
+    it('name uniqueness: duplicate create and rename-collision are 409 (case-insensitive)', async () => {
+      await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({ name: 'Taken Name', jsonResume: {} })
+        .expect(201);
+      const dup = await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({ name: 'TAKEN NAME', jsonResume: {} })
+        .expect(409);
+      expect(dup.body.error).toBe('Conflict');
+      const second = await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({ name: 'Different', jsonResume: {} })
+        .expect(201);
+      await http()
+        .patch(`/api/v1/resumes/${second.body.id}`)
+        .set(auth())
+        .send({ name: 'taken name', version: 1 })
+        .expect(409);
+    });
+
+    it('pagination edges: out-of-range params are 400; far page is empty with true total', async () => {
+      await http().get('/api/v1/resumes?page=0').set(auth()).expect(400);
+      await http().get('/api/v1/resumes?limit=101').set(auth()).expect(400);
+      await http().get('/api/v1/resumes?limit=-1').set(auth()).expect(400);
+      const far = await http().get('/api/v1/resumes?page=99&limit=20').set(auth()).expect(200);
+      expect(far.body.items).toEqual([]);
+      expect(typeof far.body.total).toBe('number');
+      expect(far.body.total).toBeGreaterThan(0);
+    });
+
+    it('soft-deleted resumes stay dead: GET and PATCH both 404 after delete', async () => {
+      const r = await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({ name: 'Ephemeral', jsonResume: {} })
+        .expect(201);
+      await http().delete(`/api/v1/resumes/${r.body.id}`).set(auth()).expect(204);
+      await http().get(`/api/v1/resumes/${r.body.id}`).set(auth()).expect(404);
+      await http()
+        .patch(`/api/v1/resumes/${r.body.id}`)
+        .set(auth())
+        .send({ name: 'Zombie', version: 1 })
+        .expect(404);
+    });
+  });
+
   it('GET /api/v1/health/ready → 200 with mongo up', async () => {
     const res = await http().get('/api/v1/health/ready').expect(200);
     expect(res.body.details.mongodb.status).toBe('up');
