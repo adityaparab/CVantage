@@ -752,6 +752,84 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
       expect(modelAudits.length).toBeGreaterThanOrEqual(3);
       expect(JSON.stringify(modelAudits)).not.toMatch(/sk-live/);
     });
+
+    it('RBAC matrix from route introspection: every admin route denies non-admins (#56)', async () => {
+      type Layer = {
+        route?: { path: string; methods: Record<string, boolean> };
+        name: string;
+        handle?: { stack: Layer[] };
+        regexp?: RegExp;
+      };
+      const expressApp = app.getHttpServer().listeners('request')[0] as unknown as {
+        router: { stack: Layer[] };
+      };
+      const collect = (stack: Layer[], prefix = ''): Array<{ method: string; path: string }> => {
+        const out: Array<{ method: string; path: string }> = [];
+        for (const layer of stack) {
+          if (layer.route) {
+            for (const m of Object.keys(layer.route.methods)) {
+              out.push({ method: m.toUpperCase(), path: prefix + layer.route.path });
+            }
+          } else if (layer.name === 'router' && layer.handle) {
+            out.push(...collect(layer.handle.stack, prefix));
+          }
+        }
+        return out;
+      };
+      const adminRoutes = collect(expressApp.router.stack).filter((r) =>
+        r.path.startsWith('/api/v1/admin'),
+      );
+      expect(adminRoutes.length).toBeGreaterThanOrEqual(11); // grows automatically with new routes
+
+      // deactivated admin persona
+      const exAdmin = { email: 'ex-admin@e2e.test', fullName: 'Ex', password: 'Engine-9777X' };
+      await http().post('/api/v1/auth/register').send(exAdmin).expect(201);
+      await mongoose.connection
+        .db!.collection('users')
+        .updateOne({ email: exAdmin.email }, { $set: { role: 'admin' } });
+      const exLogin = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: exAdmin.email, password: exAdmin.password })
+        .expect(200);
+      const exBearer = exLogin.body.accessToken as string;
+      await mongoose.connection
+        .db!.collection('users')
+        .updateOne({ email: exAdmin.email }, { $set: { status: 'deactivated' } });
+
+      const candLogin = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: 'pleb@e2e.test', password: 'Engine-9512X' })
+        .expect(200);
+
+      const personas: Array<{ name: string; headers: Record<string, string>; expected: number }> = [
+        { name: 'anonymous', headers: {}, expected: 401 },
+        {
+          name: 'candidate',
+          headers: { Authorization: `Bearer ${candLogin.body.accessToken}` },
+          expected: 403,
+        },
+        {
+          name: 'deactivated-admin',
+          headers: { Authorization: `Bearer ${exBearer}` },
+          expected: 403,
+        },
+      ];
+
+      const failures: string[] = [];
+      for (const route of adminRoutes) {
+        const concrete = route.path.replace(/:[A-Za-z]+/g, '0'.repeat(24));
+        for (const persona of personas) {
+          const agent = request(app.getHttpServer() as App);
+          const verb = route.method.toLowerCase() as 'get' | 'post' | 'patch' | 'delete';
+          if (typeof agent[verb] !== 'function') continue;
+          const res = await agent[verb](concrete).set(persona.headers).send({});
+          if (res.status !== persona.expected) {
+            failures.push(`${persona.name} ${route.method} ${concrete} -> ${res.status}`);
+          }
+        }
+      }
+      expect(failures).toEqual([]);
+    });
   });
 
   describe('phase-3 hardening sweep (issue #37 / 3.7)', () => {
