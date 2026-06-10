@@ -1,6 +1,7 @@
 import argon2 from 'argon2';
 import mongoose from 'mongoose';
 
+import { ARGON2_OPTIONS } from '../auth/password-hasher.service';
 import { validateEnv } from '../config/env.validation';
 import { User, UserRole, UserSchema, UserStatus } from '../database/schemas';
 
@@ -8,13 +9,6 @@ export interface SeedResult {
   created: boolean;
   email: string;
 }
-
-export const ARGON2_OPTIONS: argon2.Options = {
-  type: argon2.argon2id,
-  memoryCost: 19_456, // 19 MiB — OWASP baseline
-  timeCost: 2,
-  parallelism: 1,
-};
 
 /**
  * Idempotent first-admin bootstrap (issue #20 / 1.11).

@@ -62,6 +62,66 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     expect(res.body.path).toBe('/api/v1/definitely-not-a-route');
   });
 
+  describe('auth: register + login (issue #22 / 2.1)', () => {
+    const creds = { email: 'ada@e2e.test', fullName: 'Ada Lovelace', password: 'Engine-4242X' };
+
+    it('registers, never leaking the hash, and audits', async () => {
+      const res = await http().post('/api/v1/auth/register').send(creds).expect(201);
+      expect(res.body.email).toBe(creds.email);
+      expect(JSON.stringify(res.body)).not.toMatch(/argon2|passwordHash/);
+      const audits = await mongoose.connection
+        .db!.collection('auditlogs')
+        .countDocuments({ action: 'user.register' });
+      expect(audits).toBe(1);
+    });
+
+    it('duplicate email (case-insensitive) → 409 envelope', async () => {
+      const res = await http()
+        .post('/api/v1/auth/register')
+        .send({ ...creds, email: 'ADA@E2E.TEST' })
+        .expect(409);
+      expect(res.body.error).toBe('Conflict');
+    });
+
+    it('weak password → 422 with field detail', async () => {
+      const res = await http()
+        .post('/api/v1/auth/register')
+        .send({ email: 'weak@e2e.test', fullName: 'W', password: 'short' })
+        .expect(422);
+      expect(JSON.stringify(res.body.details)).toContain('password');
+    });
+
+    it('login flows: 200 valid, 401 wrong password, 401 unknown email', async () => {
+      const ok = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      expect(ok.body.email).toBe(creds.email);
+      const wrong = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: 'Wrong-12345' })
+        .expect(401);
+      const ghost = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: 'ghost@e2e.test', password: 'Wrong-12345' })
+        .expect(401);
+      expect(wrong.body.message).toBe(ghost.body.message);
+    });
+
+    it('deactivated account → explicit 403', async () => {
+      await mongoose.connection
+        .db!.collection('users')
+        .updateOne({ email: creds.email }, { $set: { status: 'deactivated' } });
+      await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(403);
+      await mongoose.connection
+        .db!.collection('users')
+        .updateOne({ email: creds.email }, { $set: { status: 'active' } });
+    });
+  });
+
   it('GET /api/v1/health/ready → 503 once mongo stops (readiness flip)', async () => {
     await mongoose.connection.close(); // sever the app's connection
     await mongo.stop();

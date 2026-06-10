@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
+import { AuthModule } from './auth/auth.module';
 import { AllExceptionsFilter, ZodValidationPipe } from './common';
 import { AppConfigModule, AppConfigService } from './config';
 import { DatabaseModule } from './database/database.module';
@@ -20,6 +21,7 @@ import { LoggingModule } from './observability/logging.module';
     LoggingModule,
     DatabaseModule,
     HealthModule,
+    AuthModule,
     LifecycleModule,
     ThrottlerModule.forRootAsync({
       inject: [AppConfigService],
