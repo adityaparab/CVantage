@@ -4,6 +4,11 @@ import { Button } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
+/** Prefetch-on-intent (issue #86 / 10.3): hovering a CTA warms its chunk. */
+const prefetchRegister = () => void import('@/features/auth/screens/RegisterScreen');
+const prefetchLogin = () => void import('@/features/auth/screens/LoginScreen');
+const prefetchDashboard = () => void import('@/features/dashboard/DashboardScreen');
+
 const FEATURES = [
   {
     icon: '🤖',
@@ -58,12 +63,16 @@ export default function LandingPage() {
           CVantage analyzes your resume against any job description with AI - match scores, skill
           gaps, one-click improvements and interview prep, in under a minute.
         </p>
-        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div
+          className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
+          onMouseEnter={authed ? prefetchDashboard : prefetchRegister}
+          onFocus={authed ? prefetchDashboard : prefetchRegister}
+        >
           <Link to={primaryTo}>
             <Button size="lg">{authed ? 'Go to dashboard' : 'Analyze my resume - free'}</Button>
           </Link>
           {!authed ? (
-            <Link to="/login">
+            <Link to="/login" onMouseEnter={prefetchLogin} onFocus={prefetchLogin}>
               <Button size="lg" variant="ghost">
                 Sign in
               </Button>

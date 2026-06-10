@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
-    "test:fast": "vitest run"
+    "test:fast": "vitest run",
+    "budget": "node ../scripts/check-bundle-budget.mjs"
   },
   "dependencies": {
     "@cvantage/shared": "*",
