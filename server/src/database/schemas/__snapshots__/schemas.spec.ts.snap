@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`index definitions match the canonical reference index snapshot is stable (guards accidental index drift) 1`] = `
+[
+  "{"keys":{"role":1},"u":false}",
+  "{"keys":{"email":1},"u":true}",
+  "{"keys":{"oauthIdentities.provider":1,"oauthIdentities.providerUserId":1},"u":true}",
+  "{"keys":{"fullName":"text","email":"text"},"u":false}",
+  "{"keys":{"createdAt":-1},"u":false}",
+  "{"keys":{"status":1,"lastActiveAt":-1},"u":false}",
+  "{"keys":{"userId":1},"u":false}",
+  "{"keys":{"userId":1,"createdAt":-1},"u":false}",
+  "{"keys":{"userId":1,"name":1},"u":true}",
+  "{"keys":{"analysisStatus":1,"updatedAt":-1},"u":false}",
+  "{"keys":{"userId":1},"u":false}",
+  "{"keys":{"resumeId":1},"u":false}",
+  "{"keys":{"status":1},"u":false}",
+  "{"keys":{"userId":1,"createdAt":-1},"u":false}",
+  "{"keys":{"resumeId":1,"createdAt":-1},"u":false}",
+  "{"keys":{"status":1,"createdAt":1},"u":false}",
+  "{"keys":{"userId":1},"u":false}",
+  "{"keys":{"userId":1,"state":1,"createdAt":-1},"u":false}",
+  "{"keys":{"analysisId":1},"u":true}",
+  "{"keys":{"expiresAt":1},"u":false}",
+  "{"keys":{"userId":1},"u":false}",
+  "{"keys":{"tokenHash":1},"u":true}",
+  "{"keys":{"userId":1,"kind":1},"u":false}",
+  "{"keys":{"expiresAt":1},"u":false}",
+  "{"keys":{"actorId":1},"u":false}",
+  "{"keys":{"actorId":1,"createdAt":-1},"u":false}",
+  "{"keys":{"targetType":1,"targetId":1,"createdAt":-1},"u":false}",
+  "{"keys":{"createdAt":1},"u":false}",
+  "{"keys":{"provider":1,"modelName":1},"u":true}",
+  "{"keys":{"status":1,"usages":1},"u":false}",
+]
+`;
