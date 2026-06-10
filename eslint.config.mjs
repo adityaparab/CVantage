@@ -100,7 +100,7 @@ export default tseslint.config(
       globals: { ...globals.browser },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
-    settings: { react: { version: 'detect' } },
+    settings: { react: { version: '19.1' } },
     rules: {
       ...react.configs.flat.recommended.rules,
       ...jsxA11y.flatConfigs.recommended.rules,

@@ -85,7 +85,9 @@ describe('env validation (issue #11 / 1.2)', () => {
     const exampleKeys = readFileSync(examplePath, 'utf8')
       .split(/\r?\n/)
       .map((l) => l.match(/^#?\s*([A-Z][A-Z0-9_]+)=/)?.[1])
-      .filter((k): k is string => Boolean(k));
+      .filter((k): k is string => Boolean(k))
+      // VITE_* keys are client-side (vite injects them; the server never reads them)
+      .filter((k) => !k.startsWith('VITE_'));
 
     it('documents every schema key', () => {
       const missing = ENV_KEYS.filter((k) => !exampleKeys.includes(k));

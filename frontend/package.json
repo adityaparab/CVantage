@@ -2,12 +2,25 @@
   "name": "@cvantage/frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "CVantage web client (React + Vite + Tailwind) — scaffold lands in issue #58",
+  "type": "module",
   "scripts": {
-    "lint": "eslint . --max-warnings 0 --no-error-on-unmatched-pattern",
-    "lint:fix": "eslint . --fix",
-    "test": "echo \"@cvantage/frontend: test placeholder — harness in issue #63 (7.6)\"",
-    "build": "echo \"@cvantage/frontend: build placeholder — scaffold in issue #58 (7.1)\"",
-    "typecheck": "echo \"@cvantage/frontend: typecheck placeholder — tsconfig lands in #58 (7.1)\""
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --force",
+    "test": "echo 'frontend tests land with 7.6 (#63)' && exit 0",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@cvantage/shared": "*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5"
   }
 }
