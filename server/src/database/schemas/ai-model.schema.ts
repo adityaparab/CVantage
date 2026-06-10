@@ -33,8 +33,8 @@ AiModelSchema.index({ status: 1, usages: 1 });
 
 AiModelSchema.set('toJSON', {
   versionKey: false,
-  transform: (_doc, ret: Record<string, unknown>) => {
-    delete ret.apiKeyEncrypted;
+  transform: (_doc, ret) => {
+    delete (ret as { apiKeyEncrypted?: string }).apiKeyEncrypted;
     return ret;
   },
 });

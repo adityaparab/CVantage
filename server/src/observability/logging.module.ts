@@ -35,10 +35,10 @@ export const REDACT_PATHS = [
   '*.clientSecret',
 ];
 
-interface RequestWithContext extends IncomingMessage {
+type RequestWithContext = IncomingMessage & {
   id?: string | number;
   user?: { id?: string };
-}
+};
 
 export function buildPinoHttpOptions(config: AppConfigService): Record<string, unknown> {
   const { isDev, logLevel } = { isDev: config.core.isDev, logLevel: config.core.logLevel };

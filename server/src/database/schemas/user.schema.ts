@@ -74,8 +74,8 @@ UserSchema.index({ status: 1, lastActiveAt: -1 });
 
 UserSchema.set('toJSON', {
   versionKey: false,
-  transform: (_doc, ret: Record<string, unknown>) => {
-    delete ret.passwordHash;
+  transform: (_doc, ret) => {
+    delete (ret as { passwordHash?: string }).passwordHash;
     return ret;
   },
 });
