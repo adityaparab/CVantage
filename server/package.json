@@ -18,7 +18,8 @@
     "db:indexes": "node dist/scripts/sync-indexes.js",
     "prebuild": "yarn workspace @cvantage/shared build",
     "pretest": "yarn workspace @cvantage/shared build",
-    "pretypecheck": "yarn workspace @cvantage/shared build"
+    "pretypecheck": "yarn workspace @cvantage/shared build",
+    "db:reconcile-counters": "node dist/scripts/reconcile-counters.js"
   },
   "dependencies": {
     "@nestjs/common": "^11",

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 import { UserRole } from '../src/database/schemas';
+import { reconcileCounters } from '../src/scripts/reconcile-counters';
 import { seedAdmin } from '../src/scripts/seed-admin';
 import { syncAllIndexes } from '../src/scripts/sync-indexes';
 
@@ -47,5 +48,32 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
 
     const second = await syncAllIndexes(conn);
     expect(second.flatMap((r) => r.dropped)).toEqual([]);
+  });
+
+  it('db:reconcile-counters fixes skew (incl. negatives) and is then a no-op', async () => {
+    const users = conn.models.User!;
+    const resumes =
+      conn.models.Resume ??
+      conn.model('Resume', (await import('../src/database/schemas')).ResumeSchema);
+    const u = await users.create({
+      email: 'skew@cvantage.test',
+      fullName: 'Skew',
+      role: 'candidate',
+    });
+    await resumes.create([
+      { userId: u._id, name: 'R1', source: 'created', jsonResume: { basics: { name: 'A' } } },
+      { userId: u._id, name: 'R2', source: 'created', jsonResume: { basics: { name: 'B' } } },
+      { userId: u._id, name: 'Gone', source: 'created', jsonResume: {}, deletedAt: new Date() },
+    ]);
+    await users.updateOne({ _id: u._id }, { $set: { resumeCount: -5, analysisCount: 9 } });
+
+    const first = await reconcileCounters(conn, 50);
+    const fixed = await users.findOne({ _id: u._id });
+    expect(fixed!.get('resumeCount')).toBe(2); // live only
+    expect(fixed!.get('analysisCount')).toBe(0);
+    expect(first.filter((c) => c.userId === String(u._id))).toHaveLength(2);
+
+    const second = await reconcileCounters(conn, 50);
+    expect(second.filter((c) => c.userId === String(u._id))).toEqual([]);
   });
 });

@@ -402,6 +402,13 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         .expect(201);
     });
 
+    it('stats reflect crud churn (issue #33 / 3.3)', async () => {
+      const stats = await http().get('/api/v1/users/me/stats').set(auth()).expect(200);
+      // journey above: created 2 live resumes (one was deleted) at this point
+      expect(stats.body.resumeCount).toBe(2);
+      expect(stats.body.analysisCount).toBe(0);
+    });
+
     it('ownership: a second user gets 404 on foreign ids (no existence leak)', async () => {
       const mine = await http()
         .post('/api/v1/resumes')

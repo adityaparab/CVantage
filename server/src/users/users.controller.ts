@@ -107,6 +107,27 @@ export class UsersController {
     };
   }
 
+  @Get('me/stats')
+  @ApiOperation({
+    summary: 'My dashboard counters',
+    description:
+      'O(1) read of the denormalized counters shown on the dashboard cards: ' +
+      'resumes created/uploaded (live only) and analyses run. Maintained with ' +
+      'atomic increments and reconciled against source collections by the ' +
+      'db:reconcile-counters ops script (drift-proof without transactions).',
+  })
+  @ApiOkResponse({
+    description: 'Dashboard counters',
+    example: { resumeCount: 3, analysisCount: 7 },
+  })
+  @ApiStandardErrors(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)
+  async stats(
+    @CurrentUser() user: RequestUser,
+  ): Promise<{ resumeCount: number; analysisCount: number }> {
+    const me = await this.loadMe(user.id);
+    return { resumeCount: me.resumeCount, analysisCount: me.analysisCount };
+  }
+
   @Get('me')
   @ApiOperation({
     summary: 'Get my profile',
