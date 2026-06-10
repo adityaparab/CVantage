@@ -122,9 +122,7 @@ export default function ResumeViewScreen() {
           <Link to="/dashboard">
             <Button variant="ghost">Back</Button>
           </Link>
-          <Button onClick={() => navigate(`/analyses/new?resumeId=${doc.id}`)}>
-            Analyze resume
-          </Button>
+          <Button onClick={() => navigate(`/resumes/${doc.id}/analyze`)}>Analyze resume</Button>
         </div>
       </div>
 

@@ -208,7 +208,7 @@ export default function DashboardScreen() {
                     <Button
                       size="sm"
                       variant="soft"
-                      onClick={() => navigate(`/analyses/new?resumeId=${r.id}`)}
+                      onClick={() => navigate(`/resumes/${r.id}/analyze`)}
                     >
                       Analyze
                     </Button>

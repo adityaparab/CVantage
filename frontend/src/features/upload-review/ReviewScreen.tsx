@@ -133,7 +133,7 @@ export default function ReviewScreen() {
         <Button
           disabled={!canAnalyze}
           title={canAnalyze ? undefined : 'Save your corrections first'}
-          onClick={() => navigate(`/analyses/new?resumeId=${doc.id}`)}
+          onClick={() => navigate(`/resumes/${doc.id}/analyze`)}
         >
           Start analysis
         </Button>

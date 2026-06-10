@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import type { RenderResult } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, Outlet, RouterProvider } from 'react-router';
 
 import { authHandlers } from './msw/handlers';
 import { server } from './msw/server';
@@ -12,7 +12,21 @@ import { AuthProvider } from '@/features/auth/auth-context';
 
 export type AuthScenario = 'anonymous' | 'candidate' | 'admin';
 
-/** Boot any UI in one line with providers + chosen auth state (#63). */
+function Providers() {
+  return (
+    <AuthProvider>
+      <ToastProvider>
+        <ConfirmProvider>
+          <Outlet />
+        </ConfirmProvider>
+      </ToastProvider>
+    </AuthProvider>
+  );
+}
+
+/** Boot any UI in one line with providers + chosen auth state (#63).
+ *  Providers wrap a layout route, so toasts/dialogs survive navigation
+ *  into extraRoutes. */
 export function renderWith(
   ui: ReactNode,
   {
@@ -33,16 +47,9 @@ export function renderWith(
   });
   const router = createMemoryRouter(
     [
-      ...extraRoutes,
       {
-        path,
-        element: (
-          <AuthProvider>
-            <ToastProvider>
-              <ConfirmProvider>{ui}</ConfirmProvider>
-            </ToastProvider>
-          </AuthProvider>
-        ),
+        element: <Providers />,
+        children: [...extraRoutes, { path, element: ui }],
       },
     ],
     { initialEntries: [route] },

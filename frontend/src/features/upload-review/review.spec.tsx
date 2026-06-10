@@ -61,7 +61,7 @@ describe('upload review (issue #71 / 8.7)', () => {
           <ReviewScreen />
           <LocationSpy />
         </>,
-        { ...at, extraRoutes: [{ path: '/analyses/new', element: <LocationSpy /> }] },
+        { ...at, extraRoutes: [{ path: '/resumes/:id/analyze', element: <LocationSpy /> }] },
       );
       await screen.findByText(/Review .Backend Resume./);
       const label = screen.getAllByLabelText(/Professional title/)[0]!;
@@ -71,7 +71,7 @@ describe('upload review (issue #71 / 8.7)', () => {
       await screen.findByText(/you can start an analysis now/i);
       await user.click(screen.getByRole('button', { name: 'Start analysis' }));
       expect(await screen.findByTestId('location')).toHaveTextContent(
-        `/analyses/new?resumeId=${sampleResume.id}`,
+        `/resumes/${sampleResume.id}/analyze`,
       );
     },
   );
