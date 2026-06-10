@@ -15,7 +15,10 @@
     "test:e2e": "jest -c jest.e2e.config.cjs",
     "test:cov": "jest --coverage",
     "seed:admin": "node dist/scripts/seed-admin.js",
-    "db:indexes": "node dist/scripts/sync-indexes.js"
+    "db:indexes": "node dist/scripts/sync-indexes.js",
+    "prebuild": "yarn workspace @cvantage/shared build",
+    "pretest": "yarn workspace @cvantage/shared build",
+    "pretypecheck": "yarn workspace @cvantage/shared build"
   },
   "dependencies": {
     "@nestjs/common": "^11",
@@ -38,7 +41,8 @@
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@cvantage/shared": "0.1.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11",

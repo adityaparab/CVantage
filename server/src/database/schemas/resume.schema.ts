@@ -1,3 +1,4 @@
+import { pruneEmpty } from '@cvantage/shared';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
@@ -88,25 +89,8 @@ ResumeSchema.index({ analysisStatus: 1, updatedAt: -1 });
  * whitespace-only values from jsonResume so form placeholders are NEVER stored.
  * Mirrored client-side by @cvantage/shared `pruneEmpty` (#31).
  */
-export function prune(value: unknown): unknown {
-  if (typeof value === 'string') {
-    const t = value.trim();
-    return t.length ? t : undefined;
-  }
-  if (Array.isArray(value)) {
-    const arr = value.map(prune).filter((v) => v !== undefined);
-    return arr.length ? arr : undefined;
-  }
-  if (value !== null && typeof value === 'object' && !(value instanceof Date)) {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      const p = prune(v);
-      if (p !== undefined) out[k] = p;
-    }
-    return Object.keys(out).length ? out : undefined;
-  }
-  return value;
-}
+/** Re-exported for existing call sites; implementation lives in shared. */
+export const prune = pruneEmpty;
 
 ResumeSchema.pre('validate', function (this: ResumeDocument) {
   if (this.jsonResume) {

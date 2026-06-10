@@ -1,30 +1,22 @@
+import {
+  loginSchema as sharedLogin,
+  passwordSchema,
+  registerSchema as sharedRegister,
+} from '@cvantage/shared';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
 
 import { zodDto } from '../../common';
 
 /**
- * Auth payload schemas (issue #22 / 2.1). Password policy: ≥10 chars with
- * lower, upper and digit — documented in Swagger and enforced by zod.
- * Moves into @cvantage/shared with #31 for client-side reuse.
+ * Auth payload DTOs (issues #22/#23). The zod schemas themselves live in
+ * @cvantage/shared (#31) so client forms validate identically.
  */
-export const passwordSchema = z
-  .string()
-  .min(10, 'at least 10 characters')
-  .regex(/[a-z]/, 'must contain a lowercase letter')
-  .regex(/[A-Z]/, 'must contain an uppercase letter')
-  .regex(/\d/, 'must contain a digit');
+export { passwordSchema };
 
-export const registerSchema = z.object({
-  email: z.string().email().max(320),
-  fullName: z.string().trim().min(1).max(200),
-  password: passwordSchema,
-});
+export const registerSchema = sharedRegister;
 
-export const loginSchema = z.object({
-  email: z.string().email().max(320),
-  password: z.string().min(1).max(1024),
-});
+export const loginSchema = sharedLogin;
 
 export class RegisterDto extends zodDto(registerSchema) {
   @ApiProperty({ example: 'ada@example.com', maxLength: 320 }) email!: string;

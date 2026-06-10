@@ -1,4 +1,8 @@
+import { JSON_RESUME_DATE } from '@cvantage/shared';
 import type { PropOptions } from '@nestjs/mongoose';
+
+// Single source of truth: shared package (issue #31 / 3.1)
+export { EMAIL_RE, JSON_RESUME_DATE, URL_RE } from '@cvantage/shared';
 
 /**
  * Shared enums, regexes and helpers for the CVantage data model.
@@ -114,10 +118,7 @@ export enum AuditAction {
   AUTH_LOCKOUT = 'auth.lockout',
 }
 
-/** json-resume partial date: "YYYY" | "YYYY-MM" | "YYYY-MM-DD" */
-export const JSON_RESUME_DATE = /^\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?$/;
-export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const URL_RE = /^https?:\/\/.+/i;
+
 
 export const dateProp: PropOptions<string> = {
   type: String,
