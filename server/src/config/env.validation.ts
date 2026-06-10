@@ -35,6 +35,8 @@ const envObjectSchema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   SWAGGER_ENABLED: booleanish.optional(),
   SHUTDOWN_TIMEOUT_MS: intString(25_000, 1_000),
+  HEALTH_MEM_HEAP_MB: intString(512, 64),
+  HEALTH_DISK_PERCENT: z.coerce.number().min(0.5).max(0.99).default(0.9),
 
   /* ----------------------------- mongo ---------------------------- */
   MONGODB_URI: z

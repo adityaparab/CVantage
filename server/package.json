@@ -19,6 +19,7 @@
     "@nestjs/core": "^11",
     "@nestjs/mongoose": "^11",
     "@nestjs/platform-express": "^11",
+    "@nestjs/terminus": "^11",
     "mongoose": "^8",
     "nestjs-pino": "^4.6.1",
     "pino": "^10.3.1",

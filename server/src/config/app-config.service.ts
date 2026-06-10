@@ -32,6 +32,8 @@ export class AppConfigService {
         .filter(Boolean),
       swaggerEnabled: this.get('SWAGGER_ENABLED') ?? nodeEnv !== 'production',
       shutdownTimeoutMs: this.get('SHUTDOWN_TIMEOUT_MS'),
+      healthMemHeapMb: this.get('HEALTH_MEM_HEAP_MB'),
+      healthDiskPercent: this.get('HEALTH_DISK_PERCENT'),
     };
   }
 
