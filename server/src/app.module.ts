@@ -17,6 +17,7 @@ import { HealthModule } from './health/health.module';
 import { JobsModule } from './jobs';
 import { LifecycleModule } from './lifecycle/lifecycle.module';
 import { MailModule } from './mail/mail.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { LoggingModule } from './observability/logging.module';
 import { ResumesModule } from './resumes/resumes.module';
 import { StorageModule } from './storage/storage.module';
@@ -43,6 +44,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     ResumesModule,
     AnalysesModule,
+    NotificationsModule,
     LifecycleModule,
     ThrottlerModule.forRootAsync({
       inject: [AppConfigService],

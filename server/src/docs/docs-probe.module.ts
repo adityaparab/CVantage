@@ -18,6 +18,8 @@ import { AppConfigService } from '../config';
 import { User } from '../database/schemas';
 import { HealthModule } from '../health/health.module';
 import { MailService } from '../mail/mail.service';
+import { NotificationsController } from '../notifications/notifications.controller';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ResumesController } from '../resumes/resumes.controller';
 import { ResumesService } from '../resumes/resumes.service';
 import { UploadController } from '../resumes/upload.controller';
@@ -53,6 +55,7 @@ export const DOCS_FAKE_CONFIG = {
     { provide: LockoutService, useValue: {} },
     { provide: ResumesService, useValue: {} },
     { provide: AnalysesService, useValue: {} },
+    { provide: NotificationsService, useValue: {} },
     { provide: UploadService, useValue: {} },
     { provide: VerificationTokensService, useValue: {} },
     { provide: MailService, useValue: {} },
@@ -68,6 +71,7 @@ export const DOCS_FAKE_CONFIG = {
     LockoutService,
     ResumesService,
     AnalysesService,
+    NotificationsService,
     UploadService,
     VerificationTokensService,
     MailService,
@@ -87,6 +91,7 @@ class DocsStubsModule {}
     ResumesController,
     UploadController,
     AnalysesController,
+    NotificationsController,
   ],
 })
 export class DocsProbeModule {}

@@ -25,7 +25,10 @@ describe('AnalysesController mapping + delegation (issue #43 / 4.6)', () => {
       create: jest.fn().mockResolvedValue(doc({ status: 'pending' })),
       getById: jest.fn().mockResolvedValue(doc()),
     };
-    const ctl = new AnalysesController(svc as never);
+    const ctl = new AnalysesController(
+      svc as never,
+      { clearByAnalysis: jest.fn().mockResolvedValue(undefined) } as never,
+    );
     const created = await ctl.create(user, {
       name: 'n',
       jobDescription: 'x'.repeat(40),
@@ -39,7 +42,10 @@ describe('AnalysesController mapping + delegation (issue #43 / 4.6)', () => {
 
   it('list passes filters through and maps items', async () => {
     const svc = { list: jest.fn().mockResolvedValue({ items: [doc()], total: 1 }) };
-    const ctl = new AnalysesController(svc as never);
+    const ctl = new AnalysesController(
+      svc as never,
+      { clearByAnalysis: jest.fn().mockResolvedValue(undefined) } as never,
+    );
     const q = { page: 2, limit: 5, status: 'failed' } as never;
     const out = await ctl.listAnalyses(user, q);
     expect(svc.list).toHaveBeenCalledWith(expect.any(Types.ObjectId), q);
@@ -60,7 +66,10 @@ describe('AnalysesController mapping + delegation (issue #43 / 4.6)', () => {
       }),
       dismissSuggestion: jest.fn().mockResolvedValue(doc()),
     };
-    const ctl = new AnalysesController(svc as never);
+    const ctl = new AnalysesController(
+      svc as never,
+      { clearByAnalysis: jest.fn().mockResolvedValue(undefined) } as never,
+    );
     expect((await ctl.retry(user, oid())).status).toBe('pending');
     expect((await ctl.cancel(user, oid())).status).toBe('cancelled');
     const applied = await ctl.applySuggestion(user, oid(), sid);

@@ -14,6 +14,7 @@ import { ApiPagination } from '../common/docs/api-pagination.decorator';
 import { ApiStandardErrors } from '../common/docs/api-standard-errors.decorator';
 import { ObjectIdPipe } from '../common/validation/object-id.pipe';
 import { AnalysisDocument } from '../database/schemas';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { AnalysesService } from './analyses.service';
 import { CreateAnalysisDto, ListAnalysesDto } from './dto/analysis.dtos';
@@ -44,7 +45,10 @@ const toView = (doc: AnalysisDocument) => ({
 @ApiTags('Analyses')
 @Controller('analyses')
 export class AnalysesController {
-  constructor(private readonly analyses: AnalysesService) {}
+  constructor(
+    private readonly analyses: AnalysesService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   @Post()
   @ApiOperation({
@@ -111,7 +115,10 @@ export class AnalysesController {
     @CurrentUser() user: RequestUser,
     @Param('id', ObjectIdPipe) id: Types.ObjectId,
   ): Promise<ReturnType<typeof toView>> {
-    return toView(await this.analyses.getById(new Types.ObjectId(user.id), id));
+    const doc = await this.analyses.getById(new Types.ObjectId(user.id), id);
+    // visit rule (#48): opening the details clears the bell entry
+    void this.notifications.clearByAnalysis(new Types.ObjectId(user.id), id);
+    return toView(doc);
   }
 
   @Get()

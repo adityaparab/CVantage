@@ -100,6 +100,7 @@ export class AnalysisPipelineService implements OnApplicationBootstrap {
       analysisId: String(job._id),
       resumeId: String(job.resumeId),
       userId: String(job.userId),
+      name: job.name,
     };
     await this.analyses.updateOne({ _id: job._id }, { $set: { startedAt: new Date() } }).exec();
     this.bus.publish({ type: 'analysis', ...ids, status: 'in_progress' });

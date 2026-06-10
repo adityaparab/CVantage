@@ -264,6 +264,59 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
         .set({ Authorization: `Bearer ${l2.body.accessToken}` })
         .expect(404);
     });
+
+    it('bell lifecycle: in-progress -> replaced on completion -> cleared by visit (#48)', async () => {
+      const created = await http()
+        .post('/api/v1/analyses')
+        .set(auth())
+        .send({ name: 'Bell journey', jobDescription: JD, resumeId })
+        .expect(201);
+      const id = created.body.id as string;
+      await pollAnalysis(id, 'completed');
+
+      const bell = await http().get('/api/v1/notifications').set(auth()).expect(200);
+      const mine = (bell.body.items as Array<Record<string, string>>).filter(
+        (n) => n.analysisId === id,
+      );
+      expect(mine).toHaveLength(1); // replaced in place, never two rows
+      expect(mine[0]!.type).toBe('analysis_completed');
+      expect(mine[0]!.title).toContain('Bell journey');
+
+      await http().get(`/api/v1/analyses/${id}`).set(auth()).expect(200); // visit rule
+      await new Promise((r) => setTimeout(r, 300)); // fire-and-forget clear settles
+      const after = await http().get('/api/v1/notifications').set(auth()).expect(200);
+      expect(
+        (after.body.items as Array<Record<string, string>>).filter((n) => n.analysisId === id),
+      ).toHaveLength(0);
+    });
+
+    it('manual clear is idempotent; foreign clear is 404 (#48)', async () => {
+      const created = await http()
+        .post('/api/v1/analyses')
+        .set(auth())
+        .send({ name: 'Doomed bell', jobDescription: `${JD} !!FAIL_COMPARE!!`, resumeId })
+        .expect(201);
+      await pollAnalysis(created.body.id as string, 'failed');
+      const bell = await http().get('/api/v1/notifications').set(auth()).expect(200);
+      const row = (bell.body.items as Array<Record<string, string>>).find(
+        (n) => n.analysisId === created.body.id,
+      )!;
+      expect(row.type).toBe('analysis_failed');
+
+      await http().post(`/api/v1/notifications/${row.id}/clear`).set(auth()).expect(201);
+      await http().post(`/api/v1/notifications/${row.id}/clear`).set(auth()).expect(201); // idempotent
+
+      const foe = { email: 'bell-foe@e2e.test', fullName: 'Foe', password: 'Engine-8811X' };
+      await http().post('/api/v1/auth/register').send(foe).expect(201);
+      const l = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: foe.email, password: foe.password })
+        .expect(200);
+      await http()
+        .post(`/api/v1/notifications/${row.id}/clear`)
+        .set({ Authorization: `Bearer ${l.body.accessToken}` })
+        .expect(404);
+    });
   });
 
   describe('phase-3 hardening sweep (issue #37 / 3.7)', () => {

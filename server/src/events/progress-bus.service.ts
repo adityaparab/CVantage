@@ -17,9 +17,19 @@ export interface AnalysisProgressEvent {
   userId: string;
   status: string;
   step?: string;
+  /** Analysis display name - used by notification titles (#48). */
+  name?: string;
 }
 
-export type ProgressEvent = UploadParseEvent | AnalysisProgressEvent;
+export interface NotificationEvent {
+  type: 'notification';
+  userId: string;
+  notificationId?: string;
+  analysisId?: string;
+  action: 'cleared' | 'created' | 'replaced';
+}
+
+export type ProgressEvent = UploadParseEvent | AnalysisProgressEvent | NotificationEvent;
 
 /**
  * In-process progress bus (issue #41 / 4.4): pipelines publish, the SSE hub

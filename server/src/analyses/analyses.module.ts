@@ -11,6 +11,7 @@ import {
   UserSchema,
 } from '../database/schemas';
 import { JobsModule } from '../jobs';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 import { AnalysesController } from './analyses.controller';
 import { AnalysesService } from './analyses.service';
@@ -26,6 +27,7 @@ import { AnalysisPipelineService } from './analysis-pipeline.service';
     ]),
     AiModule,
     JobsModule,
+    NotificationsModule,
   ],
   controllers: [AnalysesController],
   providers: [AnalysesService, AnalysisPipelineService],
