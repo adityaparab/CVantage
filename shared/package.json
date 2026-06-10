@@ -5,7 +5,8 @@
   "description": "CVantage shared zod schemas, DTOs and enums — content lands in issue #31",
   "main": "src/index.ts",
   "scripts": {
-    "lint": "echo \"@cvantage/shared: lint placeholder — real config in issue #3 (0.2)\"",
+    "lint": "eslint . --max-warnings 0 --no-error-on-unmatched-pattern",
+    "lint:fix": "eslint . --fix",
     "test": "echo \"@cvantage/shared: test placeholder — tests land with issue #31 (3.1)\"",
     "build": "echo \"@cvantage/shared: build placeholder — tooling lands with issue #31 (3.1)\""
   }

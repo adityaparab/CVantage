@@ -1,0 +1,15 @@
+# build artifacts & deps
+node_modules/
+dist/
+build/
+coverage/
+yarn.lock
+
+# reference material — formatting churn adds no value
+cvantage-mockup.html
+database/
+PROMPT.md
+CLAUDE.md
+
+# parser-critical source for the issue bootstrapper (strict line format)
+scripts/github/issues.md

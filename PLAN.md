@@ -19,39 +19,40 @@ CVantage is an AI-powered resume analysis platform for job seekers (per `PROMPT.
 
 ## 2. Source Documents
 
-| File | Role |
-|---|---|
-| `CLAUDE.md` | Build constraints (stack, architecture rules) |
-| `PROMPT.md` | Functional requirements (candidate + admin features) |
-| `cvantage-mockup.html` | Visual reference (Pinecone-like, light/dark, responsive) |
+| File                                  | Role                                                                |
+| ------------------------------------- | ------------------------------------------------------------------- |
+| `CLAUDE.md`                           | Build constraints (stack, architecture rules)                       |
+| `PROMPT.md`                           | Functional requirements (candidate + admin features)                |
+| `cvantage-mockup.html`                | Visual reference (Pinecone-like, light/dark, responsive)            |
 | `database/nestjs-mongoose/schemas.ts` | Canonical data model (7 collections) — ported as-is into the server |
 
 ## 3. Key Decisions & Assumptions
 
-| # | Decision | Rationale |
-|---|---|---|
-| D1 | **Monorepo with Yarn workspaces**: `server/`, `frontend/`, `shared/` (+ root tooling) | Shared zod schemas (json-resume, DTOs) used by both sides; single hook/CI config |
-| D2 | **Yarn classic, latest 1.x (currently 1.22.22), workspaces = package manager; Node 22 LTS = runtime. No corepack** — Yarn installed conventionally (bundled with `node` Docker images and GitHub runners; locally `npm i -g yarn`); version constrained via `engines.yarn: "^1.22.0"` + `engine-strict` | Per `CLAUDE.md`; classic node_modules resolution — fully supported by NestJS CLI/Vite, zero PnP surface |
-| D3 | **Issues created via GitHub REST API** with a fine-grained PAT you provide (Issues + Contents r/w). Epics as parent issues, tasks linked via the sub-issues API | Confirmed with you; fully automated, traceable |
-| D4 | **OAuth (Google/LinkedIn) feature-flagged**: fully implemented, a provider activates only when its keys exist in `.env`; frontend discovers enabled providers via `GET /api/v1/auth/providers` | Confirmed with you |
-| D5 | **MongoDB**: local Mongo via `.env` locally; Railway Mongo service in production. URI is always env-driven | Confirmed with you |
-| D6 | **Extras in scope**: Swagger (exhaustive, example-rich — see 1.9 + global DoD), SSE live progress, Sentry, Playwright E2E, structured logging, OpenTelemetry (traces/metrics), LLM observability (LangSmith env-native; optional Langfuse) | Confirmed with you |
-| D7 | **Background jobs: Mongo-backed job runner** (atomic claim via `findOneAndUpdate`, heartbeat, recovery on boot, retry ≤ 5 w/ backoff) behind a `JobRunner` interface so BullMQ/Redis can be swapped in later | Schema already has the worker-queue index; avoids a Redis dependency on Railway; still configurable/extensible per `CLAUDE.md` |
-| D8 | **File storage behind `StorageService` interface**: `local` driver (disk / Railway volume) default; `s3` driver (any S3-compatible) optional via env | Schema stores `storageKey`, never bytes in Mongo; Railway needs a volume |
-| D9 | **LLM provider resolution**: admin-managed `aimodels` collection (AES-256-GCM-encrypted keys) → fallback to `.env` (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, model names per usage). `LLM_PROVIDER=fake` gives a deterministic provider for tests/E2E | Satisfies admin Settings feature + works before any model is configured; OpenAI-compatible `baseURL` covers OpenRouter etc. |
-| D10 | **Text extraction**: PDF via LangChain `PDFLoader`; `.docx` via mammoth (per `CLAUDE.md`); legacy `.doc` via `word-extractor` fallback (mammoth does not support binary `.doc`) | Honors `CLAUDE.md` while actually supporting `.doc` as `PROMPT.md` requires |
-| D11 | **Resume export**: DOCX via `docx` package; PDF via Puppeteer (HTML print template; Chromium baked into the Docker image) | Highest-fidelity output matching the in-app resume view |
-| D12 | **Auth**: argon2id password hashing; short-lived JWT access token + rotating refresh token in httpOnly cookies; refresh tokens stored hashed in `authtokens` (TTL) with reuse detection | Matches `authtokens` schema; production-grade session security |
-| D13 | **Email**: `MailService` abstraction — `console` driver (default, logs the email) / `smtp` driver via env | Password reset & verification work locally with zero setup |
-| D14 | **Realtime**: SSE endpoints for analysis progress + notifications, heartbeats every 15s; TanStack Query polling as automatic fallback | Confirmed with you; SSE survives Railway's proxy with heartbeats |
-| D15 | **No multi-document Mongo transactions** (Railway Mongo = standalone, no replica set). Counters maintained with atomic `$inc` + a periodic reconcile job; cascades done as ordered idempotent operations | Transactions require a replica set; design must not depend on it |
-| D16 | **Admin bootstrap via seed**: first admin created by a seed script from `ADMIN_EMAIL`/`ADMIN_PASSWORD` env (PROMPT forbids an admin registration flow) | Otherwise no admin can ever exist |
-| D17 | Server testing: Jest (+ supertest, mongodb-memory-server). Frontend: Vitest + RTL + MSW. E2E: Playwright against Docker Compose with `LLM_PROVIDER=fake` | Ecosystem defaults; deterministic AI for E2E |
-| D18 | API style: REST under `/api/v1`, problem-details-style error envelope, cursor/offset pagination on all list endpoints | `CLAUDE.md` global prefix; consistency |
+| #   | Decision                                                                                                                                                                                                                                                                                                | Rationale                                                                                                                      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | **Monorepo with Yarn workspaces**: `server/`, `frontend/`, `shared/` (+ root tooling)                                                                                                                                                                                                                   | Shared zod schemas (json-resume, DTOs) used by both sides; single hook/CI config                                               |
+| D2  | **Yarn classic, latest 1.x (currently 1.22.22), workspaces = package manager; Node 22 LTS = runtime. No corepack** — Yarn installed conventionally (bundled with `node` Docker images and GitHub runners; locally `npm i -g yarn`); version constrained via `engines.yarn: "^1.22.0"` + `engine-strict` | Per `CLAUDE.md`; classic node_modules resolution — fully supported by NestJS CLI/Vite, zero PnP surface                        |
+| D3  | **Issues created via GitHub REST API** with a fine-grained PAT you provide (Issues + Contents r/w). Epics as parent issues, tasks linked via the sub-issues API                                                                                                                                         | Confirmed with you; fully automated, traceable                                                                                 |
+| D4  | **OAuth (Google/LinkedIn) feature-flagged**: fully implemented, a provider activates only when its keys exist in `.env`; frontend discovers enabled providers via `GET /api/v1/auth/providers`                                                                                                          | Confirmed with you                                                                                                             |
+| D5  | **MongoDB**: local Mongo via `.env` locally; Railway Mongo service in production. URI is always env-driven                                                                                                                                                                                              | Confirmed with you                                                                                                             |
+| D6  | **Extras in scope**: Swagger (exhaustive, example-rich — see 1.9 + global DoD), SSE live progress, Sentry, Playwright E2E, structured logging, OpenTelemetry (traces/metrics), LLM observability (LangSmith env-native; optional Langfuse)                                                              | Confirmed with you                                                                                                             |
+| D7  | **Background jobs: Mongo-backed job runner** (atomic claim via `findOneAndUpdate`, heartbeat, recovery on boot, retry ≤ 5 w/ backoff) behind a `JobRunner` interface so BullMQ/Redis can be swapped in later                                                                                            | Schema already has the worker-queue index; avoids a Redis dependency on Railway; still configurable/extensible per `CLAUDE.md` |
+| D8  | **File storage behind `StorageService` interface**: `local` driver (disk / Railway volume) default; `s3` driver (any S3-compatible) optional via env                                                                                                                                                    | Schema stores `storageKey`, never bytes in Mongo; Railway needs a volume                                                       |
+| D9  | **LLM provider resolution**: admin-managed `aimodels` collection (AES-256-GCM-encrypted keys) → fallback to `.env` (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, model names per usage). `LLM_PROVIDER=fake` gives a deterministic provider for tests/E2E                                                       | Satisfies admin Settings feature + works before any model is configured; OpenAI-compatible `baseURL` covers OpenRouter etc.    |
+| D10 | **Text extraction**: PDF via LangChain `PDFLoader`; `.docx` via mammoth (per `CLAUDE.md`); legacy `.doc` via `word-extractor` fallback (mammoth does not support binary `.doc`)                                                                                                                         | Honors `CLAUDE.md` while actually supporting `.doc` as `PROMPT.md` requires                                                    |
+| D11 | **Resume export**: DOCX via `docx` package; PDF via Puppeteer (HTML print template; Chromium baked into the Docker image)                                                                                                                                                                               | Highest-fidelity output matching the in-app resume view                                                                        |
+| D12 | **Auth**: argon2id password hashing; short-lived JWT access token + rotating refresh token in httpOnly cookies; refresh tokens stored hashed in `authtokens` (TTL) with reuse detection                                                                                                                 | Matches `authtokens` schema; production-grade session security                                                                 |
+| D13 | **Email**: `MailService` abstraction — `console` driver (default, logs the email) / `smtp` driver via env                                                                                                                                                                                               | Password reset & verification work locally with zero setup                                                                     |
+| D14 | **Realtime**: SSE endpoints for analysis progress + notifications, heartbeats every 15s; TanStack Query polling as automatic fallback                                                                                                                                                                   | Confirmed with you; SSE survives Railway's proxy with heartbeats                                                               |
+| D15 | **No multi-document Mongo transactions** (Railway Mongo = standalone, no replica set). Counters maintained with atomic `$inc` + a periodic reconcile job; cascades done as ordered idempotent operations                                                                                                | Transactions require a replica set; design must not depend on it                                                               |
+| D16 | **Admin bootstrap via seed**: first admin created by a seed script from `ADMIN_EMAIL`/`ADMIN_PASSWORD` env (PROMPT forbids an admin registration flow)                                                                                                                                                  | Otherwise no admin can ever exist                                                                                              |
+| D17 | Server testing: Jest (+ supertest, mongodb-memory-server). Frontend: Vitest + RTL + MSW. E2E: Playwright against Docker Compose with `LLM_PROVIDER=fake`                                                                                                                                                | Ecosystem defaults; deterministic AI for E2E                                                                                   |
+| D18 | API style: REST under `/api/v1`, problem-details-style error envelope, cursor/offset pagination on all list endpoints                                                                                                                                                                                   | `CLAUDE.md` global prefix; consistency                                                                                         |
 
-## 4. Production-Readiness Baseline — *absolutely necessary* (all in scope)
+## 4. Production-Readiness Baseline — _absolutely necessary_ (all in scope)
 
 **Security**
+
 - Secrets only via env (`.env` git-ignored, `.env.example` maintained); fail-fast zod validation of all env at boot
 - AuthN/AuthZ on every endpoint: JWT + refresh rotation, RBAC guards, resource-ownership checks (no IDOR — users can only reach their own resumes/analyses)
 - Input validation at every boundary (zod DTOs, file size/MIME/magic-byte checks), output sanitization (secrets `select:false`, masked keys, no stack traces in prod)
@@ -60,6 +61,7 @@ CVantage is an AI-powered resume analysis platform for job seekers (per `PROMPT.
 - Dependency audit + secret scanning (gitleaks) in CI
 
 **Reliability**
+
 - Health endpoints (`/health/live`, `/health/ready` incl. Mongo ping) wired to Docker/Railway healthchecks
 - Graceful shutdown (SIGTERM: stop intake, drain jobs, close Mongo)
 - Timeouts + bounded retries with backoff on all LLM/external calls; job recovery after crash/restart (no stuck `in_progress`)
@@ -67,24 +69,28 @@ CVantage is an AI-powered resume analysis platform for job seekers (per `PROMPT.
 - Defined error taxonomy + consistent error envelope; user-visible failure states (upload parse failed, analysis failed → retry)
 
 **Observability**
+
 - Structured JSON logs (pino) with request-id correlation, redaction of secrets/PII; log levels via env
 - Error tracking (Sentry, client + server, env-gated)
 - OpenTelemetry traces + metrics (OTLP, env-gated): HTTP, Mongoose, job runner, per-LLM-step spans; trace-id injected into logs
 - LLM observability: LangSmith (env-native) / optional Langfuse — prompt, latency, token usage per chain
 
 **Quality & Delivery**
+
 - CI gates on every PR: lint, typecheck, unit tests, API e2e, build, docker build, audit; Playwright on main
 - Precommit hooks (lint+fix, related tests) + conventional-commit message validation (per `CLAUDE.md`)
 - Reproducible builds (lockfile, pinned base images, multi-stage Docker, non-root user)
 - Seed + index-sync scripts (admin bootstrap, deterministic indexes in prod where `autoIndex` is off)
 
 **Data**
+
 - All indexes from the schema actually created & verified; TTL collections working (tokens, notifications, audit logs)
 - Soft delete honored everywhere (every query excludes `deletedAt != null`); audit log on sensitive/admin actions
 - Pagination on every list endpoint; bounded payload sizes (JD ≤ 50k chars, resume text ≤ 200k)
 - Backup/restore documented for Railway Mongo volume (and `mongodump` runbook)
 
 **Documentation & Ops**
+
 - README setup matrix (local, Docker, Railway), `.env.example` with every variable documented, ops runbook (deploy, rollback, rotate keys, restore), exhaustive API docs (Swagger — every endpoint with schemas + request/response examples)
 
 ## 5. Good-to-Have (catalogued; ✅ = promoted into scope by you)
@@ -94,7 +100,7 @@ CVantage is an AI-powered resume analysis platform for job seekers (per `PROMPT.
 - Preview environments per PR; blue/green deploys; staging environment
 - Load testing (k6) + performance budgets in CI beyond Lighthouse
 - Upload antivirus scanning (ClamAV) · stricter CSP with nonces · WAF
-- Feature-flag service (config-driven flags are in scope; a flag *service* is not)
+- Feature-flag service (config-driven flags are in scope; a flag _service_ is not)
 - i18n/l10n · Storybook for the component library · visual regression tests
 - Renovate/Dependabot auto-updates · release automation (release-please/changesets)
 - Secrets manager (Doppler/Vault) instead of raw env · multi-region/HA Mongo (Atlas)
@@ -102,13 +108,13 @@ CVantage is an AI-powered resume analysis platform for job seekers (per `PROMPT.
 
 ## 6. Claude Skills — recommendations for this build
 
-| Skill | Status | Use |
-|---|---|---|
-| `review` (PR review) | already available | Run on every phase's PR before merge |
-| `security-review` | already available | Run at Phase 2 (auth), Phase 6 (admin), and Phase 10 hardening |
-| `skill-creator` | already available | Use it to create the two custom skills below |
+| Skill                              | Status                | Use                                                                                                                                                                          |
+| ---------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `review` (PR review)               | already available     | Run on every phase's PR before merge                                                                                                                                         |
+| `security-review`                  | already available     | Run at Phase 2 (auth), Phase 6 (admin), and Phase 10 hardening                                                                                                               |
+| `skill-creator`                    | already available     | Use it to create the two custom skills below                                                                                                                                 |
 | **Custom: `cvantage-conventions`** | recommended to create | Encodes this repo's module template, naming, test patterns, commit/branch/PR rules, issue workflow — keeps every future session consistent without re-reading the whole plan |
-| **Custom: `github-issue-sync`** | optional | Wraps the GitHub REST/sub-issue API calls + label/milestone conventions used here for reuse in other projects |
+| **Custom: `github-issue-sync`**    | optional              | Wraps the GitHub REST/sub-issue API calls + label/milestone conventions used here for reuse in other projects                                                                |
 
 Document-format skills (docx/pdf/pptx/xlsx) are not needed — the app's own PDF/DOCX export is application code (D11), not a Claude skill concern.
 
@@ -167,45 +173,46 @@ CVantage/
 
 - **Upload → parse**: `POST /resumes/upload` (multer, ≤10 MB, MIME+magic bytes) → store via StorageService → extract text (pdf-loader / mammoth / word-extractor) → create Resume(`source=uploaded`, `uploadParse.status=pending`) → enqueue parse job → LLM structured-output (zod json-resume) → status transitions streamed over SSE → client lands on split-view review screen.
 - **Analysis**: `POST /analyses` (name + JD 30–50k chars, resume preselected) → snapshot resume → job runner executes 3 steps, persisting step status + results → SSE progress + bell notification (one active per analysis, replaced in place) → results screen → apply suggestions (per `fieldRef`, marks `applied`) → save → export.
-- **AuthZ boundary**: every resume/analysis query is `{ _id, userId: currentUser, deletedAt: null }`. Admin endpoints live under `/admin/**` (role guard) and can never return resume/analysis *content* — metadata only (PROMPT requirement).
+- **AuthZ boundary**: every resume/analysis query is `{ _id, userId: currentUser, deletedAt: null }`. Admin endpoints live under `/admin/**` (role guard) and can never return resume/analysis _content_ — metadata only (PROMPT requirement).
 - **SPA serving**: non-`/api` routes → `index.html` (no-cache); hashed assets → immutable cache; unknown `/api/**` → JSON 404.
 
 ### 7.3 Environment matrix (`.env.example` will document each)
 
-| Group | Variables |
-|---|---|
-| Core | `NODE_ENV`, `PORT`, `APP_BASE_URL`, `LOG_LEVEL`, `CORS_ORIGINS`, `SWAGGER_ENABLED` |
-| Mongo | `MONGODB_URI` |
-| Auth | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL=15m`, `JWT_REFRESH_TTL=30d`, `COOKIE_SECRET` |
-| OAuth (optional → feature flag) | `GOOGLE_CLIENT_ID/SECRET`, `LINKEDIN_CLIENT_ID/SECRET`, `OAUTH_CALLBACK_BASE_URL` |
-| Crypto | `MASTER_ENCRYPTION_KEY` (32-byte base64; encrypts provider API keys) |
-| Seed | `ADMIN_EMAIL`, `ADMIN_PASSWORD` (first-admin bootstrap) |
-| Storage | `STORAGE_DRIVER=local\|s3`, `UPLOAD_DIR=/data/uploads`, `S3_*` (optional) |
-| LLM | `LLM_PROVIDER=openai\|fake`, `OPENAI_API_KEY`, `OPENAI_BASE_URL` (optional), `LLM_PARSING_MODEL`, `LLM_ANALYSIS_MODEL`, `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES` |
-| Mail | `MAIL_DRIVER=console\|smtp`, `SMTP_HOST/PORT/USER/PASS/FROM` |
-| Rate limit | `THROTTLE_TTL`, `THROTTLE_LIMIT` (+ auth/upload/analysis buckets) |
-| Observability (all optional) | `SENTRY_DSN`, `VITE_SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGFUSE_PUBLIC_KEY/SECRET_KEY/HOST` |
+| Group                           | Variables                                                                                                                                                            |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Core                            | `NODE_ENV`, `PORT`, `APP_BASE_URL`, `LOG_LEVEL`, `CORS_ORIGINS`, `SWAGGER_ENABLED`                                                                                   |
+| Mongo                           | `MONGODB_URI`                                                                                                                                                        |
+| Auth                            | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL=15m`, `JWT_REFRESH_TTL=30d`, `COOKIE_SECRET`                                                              |
+| OAuth (optional → feature flag) | `GOOGLE_CLIENT_ID/SECRET`, `LINKEDIN_CLIENT_ID/SECRET`, `OAUTH_CALLBACK_BASE_URL`                                                                                    |
+| Crypto                          | `MASTER_ENCRYPTION_KEY` (32-byte base64; encrypts provider API keys)                                                                                                 |
+| Seed                            | `ADMIN_EMAIL`, `ADMIN_PASSWORD` (first-admin bootstrap)                                                                                                              |
+| Storage                         | `STORAGE_DRIVER=local\|s3`, `UPLOAD_DIR=/data/uploads`, `S3_*` (optional)                                                                                            |
+| LLM                             | `LLM_PROVIDER=openai\|fake`, `OPENAI_API_KEY`, `OPENAI_BASE_URL` (optional), `LLM_PARSING_MODEL`, `LLM_ANALYSIS_MODEL`, `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES`          |
+| Mail                            | `MAIL_DRIVER=console\|smtp`, `SMTP_HOST/PORT/USER/PASS/FROM`                                                                                                         |
+| Rate limit                      | `THROTTLE_TTL`, `THROTTLE_LIMIT` (+ auth/upload/analysis buckets)                                                                                                    |
+| Observability (all optional)    | `SENTRY_DSN`, `VITE_SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGFUSE_PUBLIC_KEY/SECRET_KEY/HOST` |
 
 ## 8. Phase Plan
 
 Each phase = one GitHub **milestone** + one **epic issue**; tasks below it are sub-issues. Phases are sequential; tasks inside a phase may interleave. Every phase ends with: all its tests green, lint clean, PR(s) merged, demo-able increment.
 
-| Phase | Name | Goal | Exit criteria |
-|---|---|---|---|
-| **P0** | Repository & Tooling Bootstrap | Monorepo skeleton, quality gates, CI skeleton, GitHub hygiene | `yarn install --frozen-lockfile` + `yarn lint`/`yarn test` green at root; hooks block bad commits; CI green; labels/milestones/templates exist |
-| **P1** | Backend Foundation | Runnable NestJS core: config, Mongo, logging, errors, health, security middleware, Swagger, test harness, seeds | `GET /api/v1/health/ready` green against local Mongo; invalid env fails boot; Swagger up with examples + convention test active; seed creates admin |
-| **P2** | AuthN/AuthZ & Users | Email+password auth, JWT+refresh rotation, RBAC, flagged Google/LinkedIn OAuth, verification + password reset, me-endpoints | Full auth lifecycle covered by e2e tests incl. abuse paths; providers endpoint reflects env flags |
-| **P3** | Resume Domain | Resume CRUD + dashboard stats, file upload, storage abstraction, text extraction | Create/list/edit/soft-delete resumes; upload stores file + extracts text for all 3 formats; placeholder pruning proven by tests |
-| **P4** | AI Platform & Analysis Pipeline | Model registry (encrypted keys), LlmService, job runner, upload→json-resume parsing, 3-step analysis pipeline, suggestion apply | With `LLM_PROVIDER=fake`: upload parses end-to-end; analysis completes 3 steps with persisted results; retries/recovery proven; real OpenAI path verified manually |
-| **P5** | Notifications & Realtime | Bell notifications + SSE streams (progress + notifications) | One active notification per analysis enforced; SSE delivers step transitions < 1s; heartbeats keep proxy alive; polling fallback works |
-| **P6** | Admin Domain | Admin stats, user management, privacy-bounded resume admin, AI model settings | RBAC denial matrix green; admin cannot read resume content (test-proven); all admin actions audited |
-| **P7** | Frontend Foundation | Vite scaffold, Tailwind design system from mockup, light/dark, routing+guards, API client w/ refresh, forms infra, test harness | App shell renders with theming + auth-guarded routing against real API; MSW test suite green |
-| **P8** | Frontend Candidate Experience | Landing, auth screens, dashboard, upload flow, resume editor + in-place editing, analysis start/progress/results, apply-suggestions | Every PROMPT.md candidate feature usable end-to-end against the real backend (fake LLM ok) |
-| **P9** | Frontend Admin + Export | Admin UI (dashboard, users, settings) + PDF/DOCX export (server) wired to download dropdown | Admin journeys complete; exported PDF/DOCX open correctly and match resume content |
-| **P10** | Integration, Quality & Hardening | SPA serving, accessibility + responsive + web-vitals passes, Sentry, OTel, Playwright suite, security hardening, docs | Single server serves SPA+API; axe/Lighthouse budgets met; Playwright green in CI; security review done; runbook complete |
-| **P11** | Docker, CI/CD & Railway | Multi-stage Dockerfile, compose (db/full profiles), full CI pipeline, Railway deploy + volume + Mongo service, launch checklist | `docker compose --profile full up` works clean; CI fully gates PRs; production URL live on Railway, smoke test + observability verified |
+| Phase   | Name                             | Goal                                                                                                                                | Exit criteria                                                                                                                                                      |
+| ------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **P0**  | Repository & Tooling Bootstrap   | Monorepo skeleton, quality gates, CI skeleton, GitHub hygiene                                                                       | `yarn install --frozen-lockfile` + `yarn lint`/`yarn test` green at root; hooks block bad commits; CI green; labels/milestones/templates exist                     |
+| **P1**  | Backend Foundation               | Runnable NestJS core: config, Mongo, logging, errors, health, security middleware, Swagger, test harness, seeds                     | `GET /api/v1/health/ready` green against local Mongo; invalid env fails boot; Swagger up with examples + convention test active; seed creates admin                |
+| **P2**  | AuthN/AuthZ & Users              | Email+password auth, JWT+refresh rotation, RBAC, flagged Google/LinkedIn OAuth, verification + password reset, me-endpoints         | Full auth lifecycle covered by e2e tests incl. abuse paths; providers endpoint reflects env flags                                                                  |
+| **P3**  | Resume Domain                    | Resume CRUD + dashboard stats, file upload, storage abstraction, text extraction                                                    | Create/list/edit/soft-delete resumes; upload stores file + extracts text for all 3 formats; placeholder pruning proven by tests                                    |
+| **P4**  | AI Platform & Analysis Pipeline  | Model registry (encrypted keys), LlmService, job runner, upload→json-resume parsing, 3-step analysis pipeline, suggestion apply     | With `LLM_PROVIDER=fake`: upload parses end-to-end; analysis completes 3 steps with persisted results; retries/recovery proven; real OpenAI path verified manually |
+| **P5**  | Notifications & Realtime         | Bell notifications + SSE streams (progress + notifications)                                                                         | One active notification per analysis enforced; SSE delivers step transitions < 1s; heartbeats keep proxy alive; polling fallback works                             |
+| **P6**  | Admin Domain                     | Admin stats, user management, privacy-bounded resume admin, AI model settings                                                       | RBAC denial matrix green; admin cannot read resume content (test-proven); all admin actions audited                                                                |
+| **P7**  | Frontend Foundation              | Vite scaffold, Tailwind design system from mockup, light/dark, routing+guards, API client w/ refresh, forms infra, test harness     | App shell renders with theming + auth-guarded routing against real API; MSW test suite green                                                                       |
+| **P8**  | Frontend Candidate Experience    | Landing, auth screens, dashboard, upload flow, resume editor + in-place editing, analysis start/progress/results, apply-suggestions | Every PROMPT.md candidate feature usable end-to-end against the real backend (fake LLM ok)                                                                         |
+| **P9**  | Frontend Admin + Export          | Admin UI (dashboard, users, settings) + PDF/DOCX export (server) wired to download dropdown                                         | Admin journeys complete; exported PDF/DOCX open correctly and match resume content                                                                                 |
+| **P10** | Integration, Quality & Hardening | SPA serving, accessibility + responsive + web-vitals passes, Sentry, OTel, Playwright suite, security hardening, docs               | Single server serves SPA+API; axe/Lighthouse budgets met; Playwright green in CI; security review done; runbook complete                                           |
+| **P11** | Docker, CI/CD & Railway          | Multi-stage Dockerfile, compose (db/full profiles), full CI pipeline, Railway deploy + volume + Mongo service, launch checklist     | `docker compose --profile full up` works clean; CI fully gates PRs; production URL live on Railway, smoke test + observability verified                            |
 
 **Sequencing notes**
+
 - P3 ships upload/extraction but parsing waits for P4 (AI). The upload review screen (P8) needs P4.
 - P7/P8/P9 (frontend) consume APIs from P2–P6; backend phases are deliberately front-loaded.
 - Docker basics (compose `db` profile for local Mongo) are pulled forward into P0 so local dev works from day one; the full app image is P11.
@@ -599,8 +606,8 @@ AC: every checklist item checked with evidence linked in the epic; production ta
 
 ## 12. Local Development & Deployment Summary
 
-| Mode | How | Notes |
-|---|---|---|
+| Mode           | How                                                                         | Notes                                                                                          |
+| -------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Local (normal) | `docker compose --profile db up -d` → `yarn dev` in `server/` + `frontend/` | Vite proxies `/api`; hot reload both sides; `MAIL_DRIVER=console`, `LLM_PROVIDER=openai\|fake` |
-| Local (Docker) | `docker compose --profile full up --build` | Prod-like: single container serving SPA+API on `:3000` + Mongo w/ volumes |
-| Railway (prod) | Push to `main` → auto-deploy Dockerfile | Railway Mongo service (private networking), volume at `UPLOAD_DIR`, env per §7.3, he
+| Local (Docker) | `docker compose --profile full up --build`                                  | Prod-like: single container serving SPA+API on `:3000` + Mongo w/ volumes                      |
+| Railway (prod) | Push to `main` → auto-deploy Dockerfile                                     | Railway Mongo service (private networking), volume at `UPLOAD_DIR`, env per §7.3, he           |

@@ -4,7 +4,8 @@
   "private": true,
   "description": "CVantage API server (NestJS + MongoDB) — scaffold lands in issue #10",
   "scripts": {
-    "lint": "echo \"@cvantage/server: lint placeholder — real config in issue #3 (0.2)\"",
+    "lint": "eslint . --max-warnings 0 --no-error-on-unmatched-pattern",
+    "lint:fix": "eslint . --fix",
     "test": "echo \"@cvantage/server: test placeholder — harness in issue #19 (1.10)\"",
     "build": "echo \"@cvantage/server: build placeholder — scaffold in issue #10 (1.1)\""
   }

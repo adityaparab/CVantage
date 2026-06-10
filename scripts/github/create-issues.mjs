@@ -15,10 +15,13 @@
  *   - Sub-issues: tasks are attached to their epic via the REST sub-issues API.
  *   - Rate-limit aware: paced writes + retry on secondary-rate-limit responses.
  *   - `--dry-run`: parse + validate + print summary; zero network calls.
+ *
+ * NOTE: prefer create-issues-gh.mjs (gh CLI edition) if you have `gh` installed —
+ * it avoids PAT permission pitfalls entirely.
  */
 
 import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ---------- CLI ----------
@@ -34,8 +37,7 @@ const [OWNER, NAME] = REPO.split('/');
 const FILE = opt('--file', resolve(dirname(fileURLToPath(import.meta.url)), 'issues.md'));
 const TOKEN_FILE = opt('--token-file', null);
 const TOKEN =
-  process.env.GITHUB_TOKEN ??
-  (TOKEN_FILE ? readFileSync(TOKEN_FILE, 'utf8').trim() : undefined);
+  process.env.GITHUB_TOKEN ?? (TOKEN_FILE ? readFileSync(TOKEN_FILE, 'utf8').trim() : undefined);
 
 const API = 'https://api.github.com';
 const WRITE_DELAY_MS = 1300; // stay under secondary rate limits for content creation
@@ -46,7 +48,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function parse(text) {
   const labels = [];
   const milestones = []; // { key, title, description }
-  const issues = []; // { key, type, title, labels[], milestoneKey, parentKey|null, body }
+  const issues = []; // { key, title, labels[], milestoneKey, parentKey|null, body }
   const lines = text.split(/\r?\n/);
   let i = 0;
   const fail = (msg) => {
@@ -92,7 +94,10 @@ function parse(text) {
       issues.push({
         key: meta.key,
         title: meta.title,
-        labels: meta.labels.split(',').map((s) => s.trim()).filter(Boolean),
+        labels: meta.labels
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
         milestoneKey: meta.milestone,
         parentKey: meta.parent ?? null,
         body: body.join('\n').trim(),
@@ -114,10 +119,16 @@ function validate({ labels, milestones, issues }) {
     keys.add(is.key);
   }
   for (const is of issues) {
-    if (!msKeys.has(is.milestoneKey)) errors.push(`${is.key}: unknown milestone ${is.milestoneKey}`);
-    for (const l of is.labels) if (!labelNames.has(l)) errors.push(`${is.key}: unknown label "${l}"`);
-    if (is.parentKey && !keys.has(is.parentKey)) errors.push(`${is.key}: unknown parent ${is.parentKey}`);
-    if (is.parentKey && issues.findIndex((x) => x.key === is.parentKey) > issues.findIndex((x) => x.key === is.key))
+    if (!msKeys.has(is.milestoneKey))
+      errors.push(`${is.key}: unknown milestone ${is.milestoneKey}`);
+    for (const l of is.labels)
+      if (!labelNames.has(l)) errors.push(`${is.key}: unknown label "${l}"`);
+    if (is.parentKey && !keys.has(is.parentKey))
+      errors.push(`${is.key}: unknown parent ${is.parentKey}`);
+    if (
+      is.parentKey &&
+      issues.findIndex((x) => x.key === is.parentKey) > issues.findIndex((x) => x.key === is.key)
+    )
       errors.push(`${is.key}: parent ${is.parentKey} must be defined before child`);
     for (const [, ref] of is.body.matchAll(/\{\{([^}]+)\}\}/g))
       if (!keys.has(ref)) errors.push(`${is.key}: body references unknown key {{${ref}}}`);
@@ -178,8 +189,10 @@ async function main() {
   const data = parse(source);
   const { errors, epics, tasks } = validate(data);
 
-  console.log(`Parsed: ${data.labels.length} labels, ${data.milestones.length} milestones, ` +
-    `${data.issues.length} issues (${epics.length} epics + ${tasks.length} tasks)`);
+  console.log(
+    `Parsed: ${data.labels.length} labels, ${data.milestones.length} milestones, ` +
+      `${data.issues.length} issues (${epics.length} epics + ${tasks.length} tasks)`,
+  );
   for (const e of epics) {
     const kids = tasks.filter((t) => t.parentKey === e.key).length;
     console.log(`  ${e.key.padEnd(4)} ${e.title}  [${kids} tasks]`);
@@ -203,7 +216,9 @@ async function main() {
   console.log(`\nTarget: ${repo.full_name} (issues ${repo.has_issues ? 'enabled' : 'DISABLED'})`);
 
   // 1) Labels
-  const existingLabels = new Set((await ghAll(`/repos/${OWNER}/${NAME}/labels`)).map((l) => l.name));
+  const existingLabels = new Set(
+    (await ghAll(`/repos/${OWNER}/${NAME}/labels`)).map((l) => l.name),
+  );
   for (const l of data.labels) {
     if (existingLabels.has(l.name)) continue;
     await gh('POST', `/repos/${OWNER}/${NAME}/labels`, l);
@@ -216,9 +231,13 @@ async function main() {
   const msNumber = new Map(); // key -> milestone number
   for (const m of data.milestones) {
     const found = existingMs.find((x) => x.title === m.title);
-    if (found) { msNumber.set(m.key, found.number); continue; }
+    if (found) {
+      msNumber.set(m.key, found.number);
+      continue;
+    }
     const created = await gh('POST', `/repos/${OWNER}/${NAME}/milestones`, {
-      title: m.title, description: m.description,
+      title: m.title,
+      description: m.description,
     });
     msNumber.set(m.key, created.number);
     console.log(`milestone+ ${m.title}`);
@@ -226,7 +245,9 @@ async function main() {
   }
 
   // 3) Issues (epics first — file order guarantees parents precede children)
-  const existing = (await ghAll(`/repos/${OWNER}/${NAME}/issues?state=all`)).filter((x) => !x.pull_request);
+  const existing = (await ghAll(`/repos/${OWNER}/${NAME}/issues?state=all`)).filter(
+    (x) => !x.pull_request,
+  );
   const byTitle = new Map(existing.map((x) => [x.title, x]));
   const created = new Map(); // key -> { number, id }
   for (const is of data.issues) {
@@ -250,12 +271,16 @@ async function main() {
   for (const epic of data.issues.filter((x) => !x.parentKey)) {
     const epicNum = created.get(epic.key).number;
     const linked = new Set(
-      ((await ghAll(`/repos/${OWNER}/${NAME}/issues/${epicNum}/sub_issues`)) ?? []).map((s) => s.id),
+      ((await ghAll(`/repos/${OWNER}/${NAME}/issues/${epicNum}/sub_issues`)) ?? []).map(
+        (s) => s.id,
+      ),
     );
     for (const t of data.issues.filter((x) => x.parentKey === epic.key)) {
       const child = created.get(t.key);
       if (linked.has(child.id)) continue;
-      await gh('POST', `/repos/${OWNER}/${NAME}/issues/${epicNum}/sub_issues`, { sub_issue_id: child.id });
+      await gh('POST', `/repos/${OWNER}/${NAME}/issues/${epicNum}/sub_issues`, {
+        sub_issue_id: child.id,
+      });
       console.log(`link     + #${epicNum} ⊂ #${child.number}`);
       await sleep(WRITE_DELAY_MS);
     }
@@ -265,6 +290,20 @@ async function main() {
   for (const is of data.issues) {
     if (!/\{\{[^}]+\}\}/.test(is.body)) continue;
     const resolved = is.body.replace(/\{\{([^}]+)\}\}/g, (_, k) => `#${created.get(k).number}`);
-    await gh('PATCH', `/repos/${OWNER}/${NAME}/issues/${created.get(is.key).number}`, { body: resolved });
+    await gh('PATCH', `/repos/${OWNER}/${NAME}/issues/${created.get(is.key).number}`, {
+      body: resolved,
+    });
     console.log(`resolve  ~ #${created.get(is.key).number} (${is.key})`);
-    await sl
+    await sleep(WRITE_DELAY_MS);
+  }
+
+  // Summary
+  console.log('\nDone. Key → issue number map:');
+  for (const [k, v] of created) console.log(`  ${k.padEnd(6)} → #${v.number}`);
+  console.log(`\nBrowse: https://github.com/${OWNER}/${NAME}/issues`);
+}
+
+main().catch((e) => {
+  console.error(`\nFATAL: ${e.message}`);
+  process.exit(1);
+});

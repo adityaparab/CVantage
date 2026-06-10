@@ -19,11 +19,11 @@
  *   - --dry-run: parse + validate only; no gh calls.
  */
 
+import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
-import { tmpdir } from 'node:os';
 
 // ---------- CLI ----------
 const args = process.argv.slice(2);
@@ -89,7 +89,10 @@ function parse(text) {
       issues.push({
         key: meta.key,
         title: meta.title,
-        labels: meta.labels.split(',').map((s) => s.trim()).filter(Boolean),
+        labels: meta.labels
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
         milestoneKey: meta.milestone,
         parentKey: meta.parent ?? null,
         body: body.join('\n').trim(),
@@ -110,21 +113,35 @@ function validate({ labels, milestones, issues }) {
     keys.add(is.key);
   }
   for (const is of issues) {
-    if (!msKeys.has(is.milestoneKey)) errors.push(`${is.key}: unknown milestone ${is.milestoneKey}`);
-    for (const l of is.labels) if (!labelNames.has(l)) errors.push(`${is.key}: unknown label "${l}"`);
-    if (is.parentKey && !keys.has(is.parentKey)) errors.push(`${is.key}: unknown parent ${is.parentKey}`);
-    if (is.parentKey && issues.findIndex((x) => x.key === is.parentKey) > issues.findIndex((x) => x.key === is.key))
+    if (!msKeys.has(is.milestoneKey))
+      errors.push(`${is.key}: unknown milestone ${is.milestoneKey}`);
+    for (const l of is.labels)
+      if (!labelNames.has(l)) errors.push(`${is.key}: unknown label "${l}"`);
+    if (is.parentKey && !keys.has(is.parentKey))
+      errors.push(`${is.key}: unknown parent ${is.parentKey}`);
+    if (
+      is.parentKey &&
+      issues.findIndex((x) => x.key === is.parentKey) > issues.findIndex((x) => x.key === is.key)
+    )
       errors.push(`${is.key}: parent ${is.parentKey} must be defined before child`);
     for (const [, ref] of is.body.matchAll(/\{\{([^}]+)\}\}/g))
       if (!keys.has(ref)) errors.push(`${is.key}: body references unknown key {{${ref}}}`);
     if (!is.body) errors.push(`${is.key}: empty body`);
   }
-  return { errors, epics: issues.filter((x) => !x.parentKey), tasks: issues.filter((x) => x.parentKey) };
+  return {
+    errors,
+    epics: issues.filter((x) => !x.parentKey),
+    tasks: issues.filter((x) => x.parentKey),
+  };
 }
 
 // ---------- gh wrapper ----------
 function ghRaw(ghArgs) {
-  const res = spawnSync('gh', ghArgs, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+  const res = spawnSync('gh', ghArgs, {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    windowsHide: true,
+  });
   if (res.error) {
     throw new Error(
       res.error.code === 'ENOENT'
@@ -140,7 +157,10 @@ async function gh(ghArgs, { allow404 = false } = {}, attempt = 1) {
   if (r.code === 0) return r.out ? JSON.parse(r.out) : null;
   const msg = `${r.err}\n${r.out}`;
   if (allow404 && /HTTP 404|Not Found/i.test(msg)) return null;
-  if (/Resource not accessible|HTTP 403.*(permission|forbidden)/is.test(msg) && !/rate limit/i.test(msg)) {
+  if (
+    /Resource not accessible|HTTP 403.*(permission|forbidden)/is.test(msg) &&
+    !/rate limit/i.test(msg)
+  ) {
     throw new Error(
       `Permission error from GitHub — the authenticated identity cannot perform: gh ${ghArgs.join(' ')}\n` +
         `→ run \`gh auth status\`; you need repo access with Issues write. Details: ${msg.slice(0, 300)}`,
@@ -152,7 +172,9 @@ async function gh(ghArgs, { allow404 = false } = {}, attempt = 1) {
     await sleep(wait);
     return gh(ghArgs, { allow404 }, attempt + 1);
   }
-  throw new Error(`gh ${ghArgs.slice(0, 4).join(' ')} … failed (exit ${r.code}): ${msg.slice(0, 400)}`);
+  throw new Error(
+    `gh ${ghArgs.slice(0, 4).join(' ')} … failed (exit ${r.code}): ${msg.slice(0, 400)}`,
+  );
 }
 
 async function ghPaged(pathBase) {
@@ -184,8 +206,10 @@ async function ghWrite(method, path, fields, bodyText) {
 async function main() {
   const data = parse(readFileSync(FILE, 'utf8'));
   const { errors, epics, tasks } = validate(data);
-  console.log(`Parsed: ${data.labels.length} labels, ${data.milestones.length} milestones, ` +
-    `${data.issues.length} issues (${epics.length} epics + ${tasks.length} tasks)`);
+  console.log(
+    `Parsed: ${data.labels.length} labels, ${data.milestones.length} milestones, ` +
+      `${data.issues.length} issues (${epics.length} epics + ${tasks.length} tasks)`,
+  );
   if (errors.length) {
     console.error(`VALIDATION FAILED (${errors.length}):`);
     for (const e of errors) console.error(`  - ${e}`);
@@ -207,7 +231,11 @@ async function main() {
   const existingLabels = new Set((await ghPaged(`repos/${REPO}/labels`)).map((l) => l.name));
   for (const l of data.labels) {
     if (existingLabels.has(l.name)) continue;
-    await ghWrite('POST', `repos/${REPO}/labels`, { name: l.name, color: l.color, description: l.description });
+    await ghWrite('POST', `repos/${REPO}/labels`, {
+      name: l.name,
+      color: l.color,
+      description: l.description,
+    });
     console.log(`label    + ${l.name}`);
     await sleep(WRITE_DELAY_MS);
   }
@@ -217,8 +245,14 @@ async function main() {
   const msNumber = new Map();
   for (const m of data.milestones) {
     const found = existingMs.find((x) => x.title === m.title);
-    if (found) { msNumber.set(m.key, found.number); continue; }
-    const created = await ghWrite('POST', `repos/${REPO}/milestones`, { title: m.title, description: m.description });
+    if (found) {
+      msNumber.set(m.key, found.number);
+      continue;
+    }
+    const created = await ghWrite('POST', `repos/${REPO}/milestones`, {
+      title: m.title,
+      description: m.description,
+    });
     msNumber.set(m.key, created.number);
     console.log(`milestone+ ${m.title}`);
     await sleep(WRITE_DELAY_MS);
@@ -232,7 +266,16 @@ async function main() {
     let issue = byTitle.get(is.title);
     if (!issue) {
       const fields = { title: is.title, milestone: msNumber.get(is.milestoneKey) };
-      const a = ['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${fields.title}`, '-F', `milestone=${fields.milestone}`];
+      const a = [
+        'api',
+        '-X',
+        'POST',
+        `repos/${REPO}/issues`,
+        '-f',
+        `title=${fields.title}`,
+        '-F',
+        `milestone=${fields.milestone}`,
+      ];
       for (const l of is.labels) a.push('-f', `labels[]=${l}`);
       const f = join(TMP, `body-${is.key.replace(/\W/g, '_')}.md`);
       writeFileSync(f, is.body, 'utf8');
@@ -249,11 +292,20 @@ async function main() {
   // 4) Sub-issue links
   for (const epic of data.issues.filter((x) => !x.parentKey)) {
     const epicNum = created.get(epic.key).number;
-    const linked = new Set(((await ghPaged(`repos/${REPO}/issues/${epicNum}/sub_issues`)) ?? []).map((s) => s.id));
+    const linked = new Set(
+      ((await ghPaged(`repos/${REPO}/issues/${epicNum}/sub_issues`)) ?? []).map((s) => s.id),
+    );
     for (const t of data.issues.filter((x) => x.parentKey === epic.key)) {
       const child = created.get(t.key);
       if (linked.has(child.id)) continue;
-      await gh(['api', '-X', 'POST', `repos/${REPO}/issues/${epicNum}/sub_issues`, '-F', `sub_issue_id=${child.id}`]);
+      await gh([
+        'api',
+        '-X',
+        'POST',
+        `repos/${REPO}/issues/${epicNum}/sub_issues`,
+        '-F',
+        `sub_issue_id=${child.id}`,
+      ]);
       console.log(`link     + #${epicNum} ⊂ #${child.number}`);
       await sleep(WRITE_DELAY_MS);
     }
