@@ -53,6 +53,134 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
     expect(res.body.status).toBe('ok');
   });
 
+  describe('analysis pipeline (issue #42 / 4.5, fake LLM)', () => {
+    const creds = { email: 'analyst@e2e.test', fullName: 'Analyst', password: 'Engine-7311X' };
+    let bearer = '';
+    let resumeId = '';
+    const auth = () => ({ Authorization: `Bearer ${bearer}` });
+    const JD =
+      'We are hiring a Senior Platform Engineer to own NestJS services, the MongoDB data layer and CI/CD.';
+
+    const pollAnalysis = async (id: string, want: string, tries = 30) => {
+      for (let i = 0; i < tries; i += 1) {
+        const res = await http().get(`/api/v1/analyses/${id}`).set(auth()).expect(200);
+        if (res.body.status === want) return res.body as Record<string, never>;
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      throw new Error(`analysis never reached ${want}`);
+    };
+
+    beforeAll(async () => {
+      await http().post('/api/v1/auth/register').send(creds).expect(201);
+      const login = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: creds.email, password: creds.password })
+        .expect(200);
+      bearer = login.body.accessToken as string;
+      const r = await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({
+          name: 'Analysis Target',
+          jsonResume: {
+            basics: { name: 'Ada Lovelace', label: 'Senior Software Engineer' },
+            work: [{ name: 'Analytical Engines Ltd', highlights: ['Cut compute time 40%'] }],
+            skills: [{ name: 'TypeScript', keywords: ['NestJS', 'React'] }],
+          },
+        })
+        .expect(201);
+      resumeId = r.body.id as string;
+    });
+
+    it('full journey: pending -> 3 steps -> completed result within bounds', async () => {
+      const created = await http()
+        .post('/api/v1/analyses')
+        .set(auth())
+        .send({ name: 'PE @ Acme', jobDescription: JD, resumeId })
+        .expect(201);
+      expect(created.body.status).toBe('pending');
+      expect(created.body.steps).toHaveLength(3);
+
+      const done = await pollAnalysis(created.body.id as string, 'completed');
+      const body = done as unknown as {
+        steps: Array<{ status: string }>;
+        result: {
+          overallScore: number;
+          atsScore: number;
+          suggestions: Array<{ fieldRef: string }>;
+          interviewQuestions: unknown[];
+        };
+        durationMs: number;
+        modelUsed: string;
+      };
+      expect(body.steps.every((s) => s.status === 'completed')).toBe(true);
+      expect(body.result.overallScore).toBeGreaterThanOrEqual(0);
+      expect(body.result.overallScore).toBeLessThanOrEqual(100);
+      expect(body.result.atsScore).toBeLessThanOrEqual(100);
+      expect(body.result.interviewQuestions.length).toBeGreaterThan(0);
+      expect(body.result.suggestions.map((s) => s.fieldRef)).not.toContain('totally.fake[9].path');
+      expect(body.durationMs).toBeGreaterThanOrEqual(0);
+      expect(body.modelUsed).toBe('fake/fake-fixture');
+
+      const resume = await http().get(`/api/v1/resumes/${resumeId}`).set(auth()).expect(200);
+      expect(resume.body.analysisStatus).toBe('completed');
+      expect(resume.body.lastAnalyzedAt).toBeDefined();
+    });
+
+    it('step-2 failure: step-1 data intact, analysis + rollup failed', async () => {
+      const created = await http()
+        .post('/api/v1/analyses')
+        .set(auth())
+        .send({
+          name: 'Doomed at step two',
+          jobDescription: `${JD} !!FAIL_SUGGESTIONS!!`,
+          resumeId,
+        })
+        .expect(201);
+      const failed = await pollAnalysis(created.body.id as string, 'failed');
+      const body = failed as unknown as {
+        steps: Array<{ key: string; status: string }>;
+        result?: { overallScore?: number; suggestions?: unknown[] };
+        error?: string;
+      };
+      expect(body.steps[0]!.status).toBe('completed');
+      expect(body.steps[1]!.status).toBe('failed');
+      expect(body.result?.overallScore).toBe(72); // step-1 result preserved
+      expect(body.result?.suggestions ?? []).toHaveLength(0);
+      expect(String(body.error)).toMatch(/quota/i);
+      const resume = await http().get(`/api/v1/resumes/${resumeId}`).set(auth()).expect(200);
+      expect(resume.body.analysisStatus).toBe('failed');
+    });
+
+    it('validation: JD too short/long -> 422; foreign resume -> 404; empty resume -> 422', async () => {
+      await http()
+        .post('/api/v1/analyses')
+        .set(auth())
+        .send({ name: 'short', jobDescription: 'x'.repeat(29), resumeId })
+        .expect(422);
+      await http()
+        .post('/api/v1/analyses')
+        .set(auth())
+        .send({ name: 'long', jobDescription: 'x'.repeat(50_001), resumeId })
+        .expect(422);
+      await http()
+        .post('/api/v1/analyses')
+        .set(auth())
+        .send({ name: 'foreign', jobDescription: JD, resumeId: '0'.repeat(24) })
+        .expect(404);
+      const empty = await http()
+        .post('/api/v1/resumes')
+        .set(auth())
+        .send({ name: 'Empty Shell', jsonResume: {} })
+        .expect(201);
+      await http()
+        .post('/api/v1/analyses')
+        .set(auth())
+        .send({ name: 'no content', jobDescription: JD, resumeId: empty.body.id })
+        .expect(422);
+    });
+  });
+
   describe('phase-3 hardening sweep (issue #37 / 3.7)', () => {
     const creds = { email: 'sweep@e2e.test', fullName: 'Sweep', password: 'Engine-9911X' };
     const foe = { email: 'sweep-foe@e2e.test', fullName: 'Foe', password: 'Engine-9912X' };
@@ -621,7 +749,6 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
       expect(res.body.uploadParse.status).toBe('failed');
       expect(String(res.body.uploadParse.error)).toMatch(/CORRUPT_FILE|EMPTY_TEXT/);
     });
-
 
     it('background parse: fake LLM fills jsonResume and flips status to completed', async () => {
       const up = await http()

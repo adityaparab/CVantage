@@ -2,6 +2,8 @@ import { Global, Module } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { LoggerModule } from 'nestjs-pino';
 
+import { AnalysesController } from '../analyses/analyses.controller';
+import { AnalysesService } from '../analyses/analyses.service';
 import { AuditService } from '../audit/audit.service';
 import { AccountController } from '../auth/account.controller';
 import { AuthController } from '../auth/auth.controller';
@@ -50,6 +52,7 @@ export const DOCS_FAKE_CONFIG = {
     { provide: PasswordHasherService, useValue: {} },
     { provide: LockoutService, useValue: {} },
     { provide: ResumesService, useValue: {} },
+    { provide: AnalysesService, useValue: {} },
     { provide: UploadService, useValue: {} },
     { provide: VerificationTokensService, useValue: {} },
     { provide: MailService, useValue: {} },
@@ -64,6 +67,7 @@ export const DOCS_FAKE_CONFIG = {
     PasswordHasherService,
     LockoutService,
     ResumesService,
+    AnalysesService,
     UploadService,
     VerificationTokensService,
     MailService,
@@ -82,6 +86,7 @@ class DocsStubsModule {}
     UsersController,
     ResumesController,
     UploadController,
+    AnalysesController,
   ],
 })
 export class DocsProbeModule {}

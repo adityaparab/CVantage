@@ -3,6 +3,7 @@ import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AiModule } from './ai';
+import { AnalysesModule } from './analyses/analyses.module';
 import { ActiveUserGuard } from './auth/active-user.guard';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -41,6 +42,7 @@ import { UsersModule } from './users/users.module';
     OAuthModule,
     UsersModule,
     ResumesModule,
+    AnalysesModule,
     LifecycleModule,
     ThrottlerModule.forRootAsync({
       inject: [AppConfigService],
