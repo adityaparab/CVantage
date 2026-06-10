@@ -492,6 +492,101 @@ const RUN = process.env.CI === 'true' || process.env.FORCE_MONGO_E2E === 'true';
       expect(elapsed).toBeLessThan(750); // 200ms target; CI variance headroom
       await db.collection('resumes').deleteMany({ name: /^bench-/ });
     });
+
+    it('user management journey: search, patch, deactivate kills access, reset modes (#53)', async () => {
+      const victim = { email: 'victim@e2e.test', fullName: 'Vic Tim', password: 'Engine-9613X' };
+      await http().post('/api/v1/auth/register').send(victim).expect(201);
+      const vLogin = await http()
+        .post('/api/v1/auth/login')
+        .send({ email: victim.email, password: victim.password })
+        .expect(200);
+      const vBearer = vLogin.body.accessToken as string;
+
+      // search by email prefix, name prefix, then exact id
+      const byEmail = await http()
+        .get('/api/v1/admin/users?search=victim@')
+        .set(adminAuth())
+        .expect(200);
+      expect(byEmail.body.total).toBe(1);
+      const row = byEmail.body.items[0] as { id: string; fullName: string };
+      const byName = await http()
+        .get('/api/v1/admin/users?search=Vic')
+        .set(adminAuth())
+        .expect(200);
+      expect((byName.body.items as Array<{ id: string }>).some((u) => u.id === row.id)).toBe(true);
+      const byId = await http()
+        .get(`/api/v1/admin/users?search=${row.id}`)
+        .set(adminAuth())
+        .expect(200);
+      expect(byId.body.total).toBe(1);
+
+      // patch: name ok; email collision 409
+      await http()
+        .patch(`/api/v1/admin/users/${row.id}`)
+        .set(adminAuth())
+        .send({ fullName: 'Vic T. Renamed' })
+        .expect(200);
+      await http()
+        .patch(`/api/v1/admin/users/${row.id}`)
+        .set(adminAuth())
+        .send({ email: 'boss@e2e.test' })
+        .expect(409);
+
+      // deactivate: existing bearer dies on next request, refresh revoked
+      await http().post(`/api/v1/admin/users/${row.id}/deactivate`).set(adminAuth()).expect(201);
+      await http()
+        .get('/api/v1/users/me')
+        .set({ Authorization: `Bearer ${vBearer}` })
+        .expect(403);
+      const vCookies = ((vLogin.headers['set-cookie'] as unknown as string[]) ?? [])
+        .map((c) => c.split(';')[0])
+        .join('; ');
+      await http().post('/api/v1/auth/refresh').set('Cookie', vCookies).expect(401);
+
+      // self-deactivation blocked
+      const meId = (await http().get('/api/v1/users/me').set(adminAuth()).expect(200)).body
+        .id as string;
+      await http().post(`/api/v1/admin/users/${meId}/deactivate`).set(adminAuth()).expect(409);
+
+      // reactivate + temporary reset -> login with temp password works
+      await http().post(`/api/v1/admin/users/${row.id}/reactivate`).set(adminAuth()).expect(201);
+      const reset = await http()
+        .post(`/api/v1/admin/users/${row.id}/reset-password`)
+        .set(adminAuth())
+        .send({ mode: 'temporary' })
+        .expect(201);
+      const temp = reset.body.temporaryPassword as string;
+      expect(temp.length).toBeGreaterThanOrEqual(12);
+      await http()
+        .post('/api/v1/auth/login')
+        .send({ email: victim.email, password: temp })
+        .expect(200);
+
+      // email-mode reset lands in the console inbox
+      const inbox = app.get<MailService>(MailService).driver as unknown as ConsoleMailDriver;
+      const before = inbox.sent.length;
+      await http()
+        .post(`/api/v1/admin/users/${row.id}/reset-password`)
+        .set(adminAuth())
+        .send({ mode: 'email' })
+        .expect(201);
+      expect(inbox.sent.length).toBe(before + 1);
+
+      // audit rows for every mutation
+      const audits = await mongoose.connection
+        .db!.collection('auditlogs')
+        .find({ 'meta.mode': { $exists: true } })
+        .toArray();
+      expect(audits.length).toBeGreaterThanOrEqual(2);
+      const actions = await mongoose.connection.db!.collection('auditlogs').distinct('action');
+      for (const expected of [
+        'admin.user.update',
+        'admin.user.deactivate',
+        'admin.user.password_reset',
+      ]) {
+        expect(actions).toContain(expected);
+      }
+    });
   });
 
   describe('phase-3 hardening sweep (issue #37 / 3.7)', () => {

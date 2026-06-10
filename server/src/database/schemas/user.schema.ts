@@ -48,6 +48,9 @@ export class User {
   @Prop({ default: false }) emailVerified!: boolean;
 
   @Prop({ type: Date }) lastActiveAt?: Date;
+
+  /** Set by admin temporary-password resets (issue #53 / 6.2). */
+  @Prop({ default: false }) mustChangePassword?: boolean;
   @Prop({ type: Date }) deactivatedAt?: Date;
   @Prop({ type: Types.ObjectId, ref: 'User' }) deactivatedBy?: Types.ObjectId;
 
