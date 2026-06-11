@@ -9,7 +9,7 @@ import MarketingLayout from './layouts/MarketingLayout';
 import { ForbiddenPage, NotFoundPage } from './pages/errors';
 import { QueryProvider } from './query';
 
-import { Skeleton, ToastProvider } from '@/components/ui';
+import { ConfirmProvider, Skeleton, ToastProvider } from '@/components/ui';
 import { AuthProvider } from '@/features/auth/auth-context';
 import { env } from '@/lib/env';
 
@@ -59,10 +59,12 @@ function Root() {
   return (
     <QueryProvider>
       <AuthProvider>
-        <ToastProvider>
-          <ScrollRestoration />
-          <Outlet />
-        </ToastProvider>
+        <ConfirmProvider>
+          <ToastProvider>
+            <ScrollRestoration />
+            <Outlet />
+          </ToastProvider>
+        </ConfirmProvider>
       </AuthProvider>
     </QueryProvider>
   );

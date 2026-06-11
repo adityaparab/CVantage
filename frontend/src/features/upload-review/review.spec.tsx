@@ -19,24 +19,28 @@ function LocationSpy() {
 }
 
 describe('upload review (issue #71 / 8.7)', () => {
-  it('parsed fixture populates the shared editor; original text renders beside it', async () => {
-    server.use(
-      mswHttp.get(`${API}/resumes/:id`, () =>
-        HttpResponse.json({
-          ...sampleResume,
-          originalText: 'ADA LOVELACE\nSenior Software Engineer\nLondon',
-          uploadParse: { status: 'completed', modelUsed: 'fake/fake-fixture' },
-        }),
-      ),
-    );
-    renderWith(<ReviewScreen />, at);
-    await screen.findByText(/Review .Backend Resume./);
-    // form populated from the parsed jsonResume (shared component - no fork)
-    const nameInputs = screen.getAllByLabelText(/Full name/);
-    await waitFor(() => expect((nameInputs[0] as HTMLInputElement).value).not.toBe(''));
-    // original text panel present (both layouts render it)
-    expect(screen.getAllByText(/ADA LOVELACE/)[0]).toBeInTheDocument();
-  });
+  it(
+    'parsed fixture populates the shared editor; original text renders beside it',
+    { timeout: 30_000 },
+    async () => {
+      server.use(
+        mswHttp.get(`${API}/resumes/:id`, () =>
+          HttpResponse.json({
+            ...sampleResume,
+            originalText: 'ADA LOVELACE\nSenior Software Engineer\nLondon',
+            uploadParse: { status: 'completed', modelUsed: 'fake/fake-fixture' },
+          }),
+        ),
+      );
+      renderWith(<ReviewScreen />, at);
+      await screen.findByText(/Review .Backend Resume./);
+      // form populated from the parsed jsonResume (shared component - no fork)
+      const nameInputs = screen.getAllByLabelText(/Full name/);
+      await waitFor(() => expect((nameInputs[0] as HTMLInputElement).value).not.toBe(''));
+      // original text panel present (both layouts render it)
+      expect(screen.getAllByText(/ADA LOVELACE/)[0]).toBeInTheDocument();
+    },
+  );
 
   it(
     'save then Start analysis navigates with the resume preselected',

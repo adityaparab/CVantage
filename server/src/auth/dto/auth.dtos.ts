@@ -33,9 +33,11 @@ export class LoginDto extends zodDto(loginSchema) {
   @ApiProperty({ example: 'Difference-Engine-42' }) password!: string;
 }
 
-export const refreshSchema = z.object({
-  refreshToken: z.string().min(20).optional(),
-});
+export const refreshSchema = z
+  .object({
+    refreshToken: z.string().min(20).optional(),
+  })
+  .default({});
 
 export class RefreshDto extends zodDto(refreshSchema) {
   @ApiProperty({

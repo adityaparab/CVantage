@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { AiModule } from '../ai/ai.module';
+import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
 import {
   Analysis,
@@ -33,6 +34,7 @@ import { ModelKeyValidator } from './model-key-validator.service';
       { name: Analysis.name, schema: AnalysisSchema },
       { name: Notification.name, schema: NotificationSchema },
     ]),
+    AuditModule,
     AuthModule,
     AiModule,
   ],

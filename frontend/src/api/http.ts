@@ -6,7 +6,13 @@ import { env } from '@/lib/env';
 /** Fired when a refresh attempt fails - the auth layer logs out on it. */
 export const AUTH_EXPIRED_EVENT = 'cvantage:auth-expired';
 
-const NO_REFRESH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
+const NO_REFRESH_PATHS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
+  '/auth/logout',
+  '/users/me',
+];
 
 export const http: AxiosInstance = axios.create({
   baseURL: `${env.apiBaseUrl}/api/v1`,

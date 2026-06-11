@@ -1,4 +1,7 @@
+import { resolve } from 'path';
+
 import argon2 from 'argon2';
+import { config } from 'dotenv';
 import mongoose from 'mongoose';
 
 import { ARGON2_OPTIONS } from '../auth/password-hasher.service';
@@ -9,6 +12,8 @@ export interface SeedResult {
   created: boolean;
   email: string;
 }
+
+config({ path: resolve(process.cwd(), '../.env') });
 
 /**
  * Idempotent first-admin bootstrap (issue #20 / 1.11).

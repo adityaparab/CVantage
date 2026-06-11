@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
+import { useLocation } from 'react-router';
 
 import { authApi } from '@/api/endpoints/auth';
 import { AUTH_EXPIRED_EVENT } from '@/api/http';
@@ -25,19 +26,31 @@ export function useAuth(): AuthState {
   return ctx;
 }
 
+/** Routes that should not trigger a session check. */
+const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
+
 /**
  * TanStack-powered session state (issue #61 / 7.4). Cookies carry the
  * tokens (httpOnly); the http layer transparently single-flight-refreshes;
  * a failed refresh fires AUTH_EXPIRED_EVENT and we drop to anonymous and
  * clear every cached query.
+ *
+ * The `/users/me` query is skipped on auth pages (login, register, etc.)
+ * to avoid unnecessary 401 / refresh cycles when the user is clearly
+ * unauthenticated. When the user navigates to a protected page the query
+ * auto-enables and fetches session state.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const isAuthPage = AUTH_PAGES.some((p) => location.pathname.startsWith(p));
+
   const me = useQuery({
     queryKey: keys.auth.me(),
     queryFn: authApi.me,
     retry: false,
     staleTime: 60_000,
+    enabled: !isAuthPage,
   });
 
   const status: AuthStatus = me.isPending
