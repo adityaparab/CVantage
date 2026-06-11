@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 
+import { AnonymizationService } from '../ai/anonymize.service';
 import { FakeLlmProvider } from '../ai/fake-llm.provider';
 import { LlmService } from '../ai/llm.service';
 import { AnalysisStepKey } from '../database/schemas';
@@ -55,6 +56,7 @@ const make = (jd?: string) => {
     analyses as never,
     resumes as never,
     fakeLlm(),
+    new AnonymizationService(),
     { createRunner: jest.fn() } as never,
     bus,
     { llm: { maxTokensAnalysis: 4096 } } as never,

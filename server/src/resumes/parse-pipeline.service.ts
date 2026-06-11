@@ -3,6 +3,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
+import { AnonymizationService } from '../ai/anonymize.service';
 import { LlmService } from '../ai/llm.service';
 import { AppConfigService } from '../config';
 import { AiModelUsage, UploadParseStatus } from '../database/schemas/common';
@@ -40,6 +41,7 @@ export class ParsePipelineService implements OnApplicationBootstrap {
   constructor(
     @InjectModel(Resume.name) private readonly resumes: Model<Resume>,
     private readonly llm: LlmService,
+    private readonly anonymize: AnonymizationService,
     private readonly jobs: JobsService,
     private readonly bus: ProgressBusService,
     private readonly config: AppConfigService,
@@ -84,16 +86,20 @@ export class ParsePipelineService implements OnApplicationBootstrap {
           retryable: false,
         });
       }
+      const { text: anonText, restore } = this.anonymize.anonymizeText(text);
       const result = await this.llm.invokeStructured(
         AiModelUsage.RESUME_PARSING,
-        { system: PARSE_SYSTEM_PROMPT, user: userPrompt(text) },
+        { system: PARSE_SYSTEM_PROMPT, user: userPrompt(anonText) },
         jsonResumeSchema,
         {
           maxTokens: this.config.llm.maxTokensParsing,
           metadata: { usage: 'resume_parsing', resumeId: ids.resumeId },
         },
       );
-      const pruned = pruneEmpty(result.output) ?? {};
+      const restoredOutput = JSON.parse(
+        restore(JSON.stringify(result.output)),
+      ) as typeof result.output;
+      const pruned = pruneEmpty(restoredOutput) ?? {};
       await this.resumes
         .updateOne(
           { _id: job._id, 'uploadParse.status': UploadParseStatus.PROCESSING },

@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AiModel, AiModelSchema } from '../database/schemas/ai-model.schema';
 
 import { AiModelsService } from './ai-models.service';
+import { AnonymizationService } from './anonymize.service';
 import { CryptoService } from './crypto.service';
 import { FakeLlmProvider } from './fake-llm.provider';
 import { LlmService } from './llm.service';
@@ -15,7 +16,7 @@ import { LlmService } from './llm.service';
  */
 @Module({
   imports: [MongooseModule.forFeature([{ name: AiModel.name, schema: AiModelSchema }])],
-  providers: [CryptoService, AiModelsService, FakeLlmProvider, LlmService],
-  exports: [CryptoService, AiModelsService, LlmService],
+  providers: [CryptoService, AiModelsService, FakeLlmProvider, LlmService, AnonymizationService],
+  exports: [CryptoService, AiModelsService, LlmService, AnonymizationService],
 })
 export class AiModule {}

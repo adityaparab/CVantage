@@ -7,6 +7,7 @@ import { AppException } from '../common';
 import { AnalysisStepKey } from '../database/schemas';
 import { ProgressBusService } from '../events';
 
+import { AnonymizationService } from './anonymize.service';
 import { FakeLlmProvider } from './fake-llm.provider';
 import { LlmService, PROMPT_VERSION } from './llm.service';
 
@@ -158,6 +159,7 @@ describe('token rollups (issue #44 / 4.7)', () => {
       analyses as never,
       resumes as never,
       llm,
+      new AnonymizationService(),
       { createRunner: jest.fn() } as never,
       new ProgressBusService(),
       { llm: { maxTokensAnalysis: 4096 } } as never,

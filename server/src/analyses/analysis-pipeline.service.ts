@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
+import { AnonymizationService } from '../ai/anonymize.service';
 import { LlmService } from '../ai/llm.service';
 import { AppConfigService } from '../config';
 import {
@@ -64,6 +65,7 @@ export class AnalysisPipelineService implements OnApplicationBootstrap {
     @InjectModel(Analysis.name) private readonly analyses: Model<Analysis>,
     @InjectModel(Resume.name) private readonly resumes: Model<Resume>,
     private readonly llm: LlmService,
+    private readonly anonymize: AnonymizationService,
     private readonly jobs: JobsService,
     private readonly bus: ProgressBusService,
     private readonly config: AppConfigService,
@@ -105,7 +107,7 @@ export class AnalysisPipelineService implements OnApplicationBootstrap {
     };
     await this.analyses.updateOne({ _id: job._id }, { $set: { startedAt: new Date() } }).exec();
     this.bus.publish({ type: 'analysis', ...ids, status: 'in_progress' });
-    const user = fence(job.resumeSnapshot, job.jobDescription);
+    const user = fence(this.anonymize.anonymizeSnapshot(job.resumeSnapshot), job.jobDescription);
     let modelUsed = '';
     try {
       for (const [index, key] of Object.values(AnalysisStepKey).entries()) {

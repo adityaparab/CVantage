@@ -1,6 +1,7 @@
 import { jsonResumeSchema } from '@cvantage/shared';
 import { Types } from 'mongoose';
 
+import { AnonymizationService } from '../ai/anonymize.service';
 import { FakeLlmProvider } from '../ai/fake-llm.provider';
 import { LlmService } from '../ai/llm.service';
 import { ProgressBusService } from '../events';
@@ -39,6 +40,7 @@ const make = (model = modelMock(), llm = fakeLlmService()) => {
   const svc = new ParsePipelineService(
     model as never,
     llm,
+    new AnonymizationService(),
     { createRunner: jest.fn() } as never,
     bus,
     { llm: { maxTokensParsing: 8192 } } as never,
