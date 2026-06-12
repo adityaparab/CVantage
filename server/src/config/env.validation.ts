@@ -132,6 +132,8 @@ const envObjectSchema = z.object({
   OTEL_SERVICE_NAME: z.string().min(1).default('cvantage-api'),
   LANGSMITH_TRACING: booleanish.optional(),
   LANGSMITH_API_KEY: z.string().optional(),
+  LANGSMITH_ENDPOINT: z.string().url().optional(),
+  LANGSMITH_PROJECT: z.string().min(1).optional(),
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
   LANGFUSE_SECRET_KEY: z.string().optional(),
   LANGFUSE_HOST: z.string().url().optional(),

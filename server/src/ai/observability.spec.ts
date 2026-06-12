@@ -15,24 +15,50 @@ jest.mock('langfuse-langchain', () => ({
   CallbackHandler: jest.fn().mockImplementation(() => ({ name: 'langfuse-mock' })),
 }));
 
+jest.mock('@langchain/core/tracers/tracer_langchain', () => ({
+  LangChainTracer: jest.fn().mockImplementation(() => ({ name: 'langsmith-mock' })),
+}));
+
+jest.mock('langsmith', () => ({
+  Client: jest.fn().mockImplementation(() => ({})),
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { CallbackHandler } = require('langfuse-langchain') as { CallbackHandler: jest.Mock };
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { LangChainTracer } = require('@langchain/core/tracers/tracer_langchain') as {
+  LangChainTracer: jest.Mock;
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { Client } = require('langsmith') as { Client: jest.Mock };
 
 const schema = z.object({ answer: z.string() });
 const prompt = { system: 'sys', user: 'usr' };
 const RESOLVED = { provider: 'openai', modelName: 'gpt-4o', apiKey: 'sk-x', source: 'env' };
 
-const cfg = (langfuse: Record<string, string | undefined> = {}) =>
+const cfg = (
+  langfuse: Record<string, string | undefined> = {},
+  langsmith: { apiKey?: string; endpoint?: string; project?: string } = {},
+) =>
   ({
     llm: { provider: 'openai', timeoutMs: 5000, maxRetries: 0 },
-    observability: { langfuse },
+    observability: {
+      langfuse,
+      langsmithApiKey: langsmith.apiKey,
+      langsmithEndpoint: langsmith.endpoint,
+      langsmithProject: langsmith.project,
+    },
   }) as never;
 
 const registry = () =>
   ({ resolve: jest.fn().mockResolvedValue(RESOLVED), markUsed: jest.fn() }) as never;
 
 describe('LLM observability gating (issue #44 / 4.7)', () => {
-  beforeEach(() => CallbackHandler.mockClear());
+  beforeEach(() => {
+    CallbackHandler.mockClear();
+    LangChainTracer.mockClear();
+    Client.mockClear();
+  });
 
   it('no LANGFUSE_* config -> handler never constructed, zero callbacks', () => {
     const svc = new LlmService(registry(), cfg(), new FakeLlmProvider());
@@ -52,6 +78,33 @@ describe('LLM observability gating (issue #44 / 4.7)', () => {
       secretKey: 'sk',
       baseUrl: 'https://lf.example',
     });
+  });
+
+  it('with langsmith config -> tracer constructed with correct client and project', () => {
+    new LlmService(
+      registry(),
+      cfg(
+        {},
+        { apiKey: 'ls-key', endpoint: 'https://eu.api.smith.langchain.com', project: 'cvantage' },
+      ),
+      new FakeLlmProvider(),
+    );
+    expect(Client).toHaveBeenCalledTimes(1);
+    expect(Client).toHaveBeenCalledWith({
+      apiKey: 'ls-key',
+      apiUrl: 'https://eu.api.smith.langchain.com',
+    });
+    expect(LangChainTracer).toHaveBeenCalledTimes(1);
+    expect(LangChainTracer).toHaveBeenCalledWith({
+      projectName: 'cvantage',
+      client: expect.any(Object),
+    });
+  });
+
+  it('no langsmith config -> LangChainTracer never constructed', () => {
+    new LlmService(registry(), cfg(), new FakeLlmProvider());
+    expect(LangChainTracer).not.toHaveBeenCalled();
+    expect(Client).not.toHaveBeenCalled();
   });
 
   it('per-call options carry metadata (prompt version + custom) and maxTokens reaches the chat', async () => {

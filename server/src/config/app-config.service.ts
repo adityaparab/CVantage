@@ -163,6 +163,8 @@ export class AppConfigService {
       otelServiceName: this.get('OTEL_SERVICE_NAME'),
       langsmithTracing: this.get('LANGSMITH_TRACING') ?? false,
       langsmithApiKey: this.get('LANGSMITH_API_KEY'),
+      langsmithEndpoint: this.get('LANGSMITH_ENDPOINT'),
+      langsmithProject: this.get('LANGSMITH_PROJECT'),
       langfuse: {
         publicKey: this.get('LANGFUSE_PUBLIC_KEY'),
         secretKey: this.get('LANGFUSE_SECRET_KEY'),

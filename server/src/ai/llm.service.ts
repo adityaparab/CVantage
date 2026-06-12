@@ -1,6 +1,8 @@
+import { LangChainTracer } from '@langchain/core/tracers/tracer_langchain';
 import { ChatOpenAI } from '@langchain/openai';
 import { Injectable, Logger } from '@nestjs/common';
 import { CallbackHandler } from 'langfuse-langchain';
+import { Client } from 'langsmith';
 import { ZodType } from 'zod';
 
 import { AppConfigService } from '../config';
@@ -41,8 +43,7 @@ const REPAIR_INSTRUCTION =
 @Injectable()
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
-  /** Langfuse handler only when configured - otherwise empty (zero overhead). */
-  private readonly callbacks: CallbackHandler[];
+  private readonly callbacks: (CallbackHandler | LangChainTracer)[];
 
   constructor(
     private readonly registry: AiModelsService,
@@ -50,7 +51,7 @@ export class LlmService {
     private readonly fake: FakeLlmProvider,
   ) {
     const lf = this.config.observability.langfuse;
-    this.callbacks =
+    const langfuseCallbacks =
       lf.publicKey && lf.secretKey
         ? [
             new CallbackHandler({
@@ -60,6 +61,18 @@ export class LlmService {
             }),
           ]
         : [];
+
+    const obs = this.config.observability;
+    const langsmithCallbacks = obs.langsmithApiKey
+      ? [
+          new LangChainTracer({
+            projectName: obs.langsmithProject,
+            client: new Client({ apiKey: obs.langsmithApiKey, apiUrl: obs.langsmithEndpoint }),
+          }),
+        ]
+      : [];
+
+    this.callbacks = [...langfuseCallbacks, ...langsmithCallbacks];
   }
 
   async invokeStructured<T>(
