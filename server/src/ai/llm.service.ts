@@ -94,7 +94,11 @@ export class LlmService {
       try {
         const result = await withSpan(
           'llm.invoke',
-          { 'llm.provider': resolved.provider, 'llm.model': resolved.modelName, 'llm.usage': String(usage) },
+          {
+            'llm.provider': resolved.provider,
+            'llm.model': resolved.modelName,
+            'llm.usage': String(usage),
+          },
           async (span) => {
             const r = await this.withTimeout(
               this.attemptStructured(resolved, prompt, schema, opts),
@@ -140,32 +144,113 @@ export class LlmService {
       metadata: { promptVersion: PROMPT_VERSION, source: resolved.source, ...opts.metadata },
       callbacks: this.callbacks,
     };
-    const structured = chat.withStructuredOutput<Record<string, unknown>>(schema as never, {
-      includeRaw: true,
-    });
-    const first = await structured.invoke(
-      [
-        ['system', prompt.system],
-        ['human', prompt.user],
-      ],
-      callOptions,
-    );
-    const validated = schema.safeParse(first.parsed);
-    if (validated.success) {
-      return { output: validated.data, usage: this.extractUsage(first.raw) };
+    try {
+      // strict: false — our zod schemas use .partial() which produces objects
+      // without a `required` array; OpenAI's strict mode rejects those schemas.
+      const structured = chat.withStructuredOutput<Record<string, unknown>>(schema as never, {
+        includeRaw: true,
+        strict: false,
+      });
+      const first = await structured.invoke(
+        [
+          ['system', prompt.system],
+          ['human', prompt.user],
+        ],
+        callOptions,
+      );
+      const validated = schema.safeParse(first.parsed);
+      if (validated.success) {
+        return { output: validated.data, usage: this.extractUsage(first.raw) };
+      }
+      const second = await structured.invoke(
+        [
+          ['system', prompt.system + REPAIR_INSTRUCTION],
+          ['human', prompt.user],
+        ],
+        callOptions,
+      );
+      const repaired = schema.safeParse(second.parsed);
+      if (repaired.success) {
+        return { output: repaired.data, usage: this.extractUsage(second.raw) };
+      }
+      throw llmInvalidOutput(repaired.error.message.slice(0, 300));
+    } catch (err) {
+      // Some providers reject optional-field JSON schemas in response_format.
+      // Fallback to plain JSON text generation + local zod validation.
+      if (!this.isResponseFormatSchemaError(err)) throw err;
+      return this.attemptJsonTextFallback(chat, prompt, schema, callOptions);
     }
-    const second = await structured.invoke(
+  }
+
+  private async attemptJsonTextFallback<T>(
+    chat: ChatOpenAI,
+    prompt: LlmPrompt,
+    schema: ZodType<T>,
+    callOptions: { metadata: Record<string, string>; callbacks: CallbackHandler[] },
+  ): Promise<{ output: T; usage: LlmUsageStats }> {
+    const jsonOnlyInstruction =
+      '\n\nRespond with one valid JSON object only. No markdown fences, no prose.';
+    const first = await chat.invoke(
       [
-        ['system', prompt.system + REPAIR_INSTRUCTION],
+        ['system', prompt.system + jsonOnlyInstruction],
         ['human', prompt.user],
       ],
       callOptions,
     );
-    const repaired = schema.safeParse(second.parsed);
+    const firstJson = this.parseJsonMessage(first);
+    const validated = schema.safeParse(firstJson);
+    if (validated.success) {
+      return { output: validated.data, usage: this.extractUsage(first) };
+    }
+
+    const second = await chat.invoke(
+      [
+        ['system', prompt.system + jsonOnlyInstruction + REPAIR_INSTRUCTION],
+        ['human', prompt.user],
+      ],
+      callOptions,
+    );
+    const secondJson = this.parseJsonMessage(second);
+    const repaired = schema.safeParse(secondJson);
     if (repaired.success) {
-      return { output: repaired.data, usage: this.extractUsage(second.raw) };
+      return { output: repaired.data, usage: this.extractUsage(second) };
     }
     throw llmInvalidOutput(repaired.error.message.slice(0, 300));
+  }
+
+  private parseJsonMessage(message: unknown): unknown {
+    const content = this.messageContentToText(message);
+    try {
+      return JSON.parse(content);
+    } catch {
+      throw llmInvalidOutput('provider returned non-JSON content');
+    }
+  }
+
+  private messageContentToText(message: unknown): string {
+    const content = (message as { content?: unknown })?.content;
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      const text = content
+        .map((part) => {
+          if (typeof part === 'string') return part;
+          if (part && typeof part === 'object' && 'text' in part) {
+            return String((part as { text?: unknown }).text ?? '');
+          }
+          return '';
+        })
+        .join('')
+        .trim();
+      if (text.length > 0) return text;
+    }
+    throw llmInvalidOutput('provider returned empty content');
+  }
+
+  private isResponseFormatSchemaError(err: unknown): boolean {
+    const raw = err instanceof Error ? err.message : String(err);
+    return /invalid schema for response_format|required to be supplied and to be an array including every key in properties/i.test(
+      raw,
+    );
   }
 
   protected buildChat(resolved: ResolvedModel, maxTokens?: number): ChatOpenAI {
@@ -200,9 +285,18 @@ export class LlmService {
     const raw = err instanceof Error ? err.message : String(err);
     const msg = this.scrub(raw, apiKey);
     const status = (err as { status?: number; code?: string }).status;
+    const invalidResponseSchema = this.isResponseFormatSchemaError(msg);
     if (status === 429 || /quota|rate.?limit/i.test(msg)) return llmQuota(msg.slice(0, 200));
     if (status === 401 || status === 403 || /api.?key|unauthorized|authentication/i.test(msg)) {
       return llmAuth();
+    }
+    if (invalidResponseSchema) {
+      return llmInvalidOutput(
+        'configured structured-output schema is incompatible with the provider',
+      );
+    }
+    if (status !== undefined && status >= 400 && status < 500) {
+      return new LlmError('PROVIDER', `LLM provider rejected request: ${msg.slice(0, 220)}`, false);
     }
     if (/abort|timed?.?out/i.test(msg)) return llmTimeout();
     return llmProvider(msg.slice(0, 300));

@@ -63,6 +63,22 @@ describe('AnonymizationService', () => {
       expect(restore(text)).toContain(original);
     });
 
+    it('replaces a space-only formatted phone number (+1 555 123 4567)', () => {
+      const original = '+1 555 123 4567';
+      const { text, restore } = svc.anonymizeText(`Phone: ${original}`);
+      expect(text).not.toContain('555');
+      expect(text).toMatch(/\+1000\d{7}/);
+      expect(restore(text)).toContain(original);
+    });
+
+    it('replaces a phone number with spaces around dashes (555 - 123 - 4567)', () => {
+      const original = '555 - 123 - 4567';
+      const { text, restore } = svc.anonymizeText(`Call ${original} anytime`);
+      expect(text).not.toContain('555');
+      expect(text).toMatch(/\+1000\d{7}/);
+      expect(restore(text)).toContain(original);
+    });
+
     it('does not touch year ranges or plain digit sequences', () => {
       const input = '2019-2023 and ID 1234567890';
       const { text } = svc.anonymizeText(input);

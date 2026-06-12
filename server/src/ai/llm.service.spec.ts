@@ -27,12 +27,18 @@ const RESOLVED = {
   source: 'env',
 };
 
-/** Service with the ChatOpenAI layer replaced by a scripted structured runner. */
-const makeService = (invokeImpl: jest.Mock, cfg = config(), registry = registryWith(RESOLVED)) => {
+/** Service with the ChatOpenAI layer replaced by scripted structured/text runners. */
+const makeService = (
+  invokeImpl: jest.Mock,
+  cfg = config(),
+  registry = registryWith(RESOLVED),
+  chatInvokeImpl?: jest.Mock,
+) => {
   class Stubbed extends LlmService {
     protected override buildChat(): never {
       return {
         withStructuredOutput: () => ({ invoke: invokeImpl }),
+        invoke: chatInvokeImpl ?? invokeImpl,
       } as never;
     }
 
@@ -119,6 +125,43 @@ describe('LlmService (issue #39 / 4.2)', () => {
       .catch((e: unknown) => e)) as LlmError;
     expect(err.code).toBe('PROVIDER');
     expect(invoke).toHaveBeenCalledTimes(3);
+  });
+
+  it('provider 400 is terminal (bad request is not retried)', async () => {
+    const invoke = jest
+      .fn()
+      .mockRejectedValue(Object.assign(new Error('bad request payload'), { status: 400 }));
+    const { svc } = makeService(invoke);
+    const err = (await svc
+      .invokeStructured(AiModelUsage.ANALYSIS, prompt, schema)
+      .catch((e: unknown) => e)) as LlmError;
+    expect(err.code).toBe('PROVIDER');
+    expect(err.retryable).toBe(false);
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('response_format schema incompatibility falls back to json-text mode', async () => {
+    const invoke = jest
+      .fn()
+      .mockRejectedValue(
+        Object.assign(
+          new Error(
+            "400 Invalid schema for response_format 'extract': In context=('properties','basics','properties','location'), 'required' is required to be supplied and to be an array including every key in properties",
+          ),
+          { status: 400 },
+        ),
+      );
+    const chatInvoke = jest.fn().mockResolvedValue({ content: '{"answer":"from-fallback"}' });
+    const { svc } = makeService(
+      invoke,
+      config({ maxRetries: 0 }),
+      registryWith(RESOLVED),
+      chatInvoke,
+    );
+    const out = await svc.invokeStructured(AiModelUsage.ANALYSIS, prompt, schema);
+    expect(out.output).toEqual({ answer: 'from-fallback' });
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(chatInvoke).toHaveBeenCalledTimes(1);
   });
 
   it('recovers when a retry succeeds', async () => {

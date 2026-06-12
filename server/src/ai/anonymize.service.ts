@@ -17,8 +17,10 @@ const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,7}\b/g;
  * or dot) between groups so bare digit sequences (years, IDs) are not touched.
  * Handles optional country code (+1 or 1) and optional parentheses.
  *   (555) 123-4567 | 555-123-4567 | 555.123.4567 | +1 555 123 4567
+ *   555 - 123 - 4567 | +1  555  123  4567 (spaces around dashes / extra spaces)
+ * Uses [\s.-]+ (one-or-more) so multi-character separators like " - " are matched.
  */
-const PHONE_RE = /(\+?1[\s.-])?(\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4})\b/g;
+const PHONE_RE = /(\+?1[\s.-]+)?(\(?\d{3}\)?[\s.-]+\d{3}[\s.-]+\d{4})\b/g;
 
 /**
  * Anonymize PII in resumes before they are sent to an external LLM.
