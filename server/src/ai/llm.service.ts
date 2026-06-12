@@ -199,7 +199,10 @@ export class LlmService {
     chat: ChatOpenAI,
     prompt: LlmPrompt,
     schema: ZodType<T>,
-    callOptions: { metadata: Record<string, string>; callbacks: CallbackHandler[] },
+    callOptions: {
+      metadata: Record<string, string>;
+      callbacks: (CallbackHandler | LangChainTracer)[];
+    },
   ): Promise<{ output: T; usage: LlmUsageStats }> {
     const jsonOnlyInstruction =
       '\n\nRespond with one valid JSON object only. No markdown fences, no prose.';
